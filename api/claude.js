@@ -50,12 +50,19 @@ module.exports = async function handler(req, res) {
       }),
     });
     const j = await r.json();
-    if (!r.ok) return res.status(502).json({ error: "claude_error", detail: (j.error && j.error.message) || r.status });
+    if (!r.ok) {
+      const msg = (j.error && j.error.message) || String(r.status);
+      console.error("Anthropic error", r.status, msg);
+      if (r.status === 401 || r.status === 403) return res.status(503).json({ error: "bad_key", detail: msg });
+      if (r.status === 429 || /credit|billing/i.test(msg)) return res.status(429).json({ error: "rate_limited", detail: msg });
+      return res.status(502).json({ error: "claude_error", detail: msg });
+    }
     const text = (j.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
     const data = pickJson(text);
-    if (!data) return res.status(502).json({ error: "invalid_json" });
+    if (!data) { console.error("unreadable reply", String(text).slice(0, 300)); return res.status(502).json({ error: "invalid_json" }); }
     return res.status(200).json({ data });
   } catch (e) {
+    console.error("claude function failed", e && e.message);
     return res.status(502).json({ error: "claude_error" });
   }
 };

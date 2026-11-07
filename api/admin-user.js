@@ -26,10 +26,13 @@ module.exports = async function handler(req, res) {
   if (password.length < 8) return res.status(400).json({ error: "short_password" });
 
   // the person must already be on the Users list
-  const H = { apikey: secret, Authorization: "Bearer " + secret, "content-type": "application/json" };
+  // new-style secret keys (sb_secret_...) go in apikey only; old JWT-style service keys also go in Authorization
+  const H = { apikey: secret, "content-type": "application/json" };
+  if (!secret.startsWith("sb_secret_")) H.Authorization = "Bearer " + secret;
   try {
     const listed = await fetch(SUPABASE_URL + "/rest/v1/app_users?select=email&email=eq." + encodeURIComponent(email), { headers: H });
-    const rows = listed.ok ? await listed.json() : [];
+    if (!listed.ok) { console.error("admin-user lookup failed", listed.status, (await listed.text()).slice(0, 200)); return res.status(502).json({ error: "lookup_failed" }); }
+    const rows = await listed.json();
     if (!rows.length) return res.status(400).json({ error: "not_listed" });
 
     // try to create the login

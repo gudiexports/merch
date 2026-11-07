@@ -274,10 +274,40 @@ table.lc tr.mis td{background:var(--warn-bg)}
       return Promise.resolve();
     }
   };
+
+  /* ---- Claude, through the site's own /api/claude (the key stays on the server) ---- */
+  function token(){ return sb.auth.getSession().then(function(r){ return r.data && r.data.session ? r.data.session.access_token : ""; }); }
+  function shrink(blob){
+    return createImageBitmap(blob).then(function(bm){
+      var sc = Math.min(1, 1400 / Math.max(bm.width, bm.height)), c = document.createElement("canvas");
+      c.width = Math.round(bm.width * sc); c.height = Math.round(bm.height * sc);
+      var x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(bm, 0, 0, c.width, c.height);
+      return new Promise(function(ok){ c.toBlob(function(b){ var fr = new FileReader(); fr.onload = function(){ ok({type: "image/jpeg", data: String(fr.result).split(",")[1]}); }; fr.readAsDataURL(b); }, "image/jpeg", 0.8); });
+    });
+  }
+  var sample = {
+    limits: function(){ return Promise.resolve({images: {maxCount: 8}}); },
+    json: function(prompt, o){
+      o = o || {};
+      return Promise.all([token(), Promise.all((o.images || []).map(shrink))]).then(function(a){
+        return fetch("/api/claude", {method: "POST", signal: o.signal, headers: {"content-type": "application/json", authorization: "Bearer " + a[0]}, body: JSON.stringify({prompt: prompt, images: a[1]})});
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(j){
+          if (!r.ok || !j.data){ var e = new Error(j.error || "failed"); e.code = j.error === "invalid_json" ? "invalid_json" : "unavailable"; throw e; }
+          return j.data;
+        });
+      });
+    }
+  };
+  function claudeReady(){
+    return token().then(function(t){ return fetch("/api/claude", {headers: {authorization: "Bearer " + t}}); })
+      .then(function(r){ return r.ok ? sample : null; }).catch(function(){ return null; });
+  }
   window.claude = {use: function(n){
     if (n === "db") return ready.then(function(){ return db; });
     if (n === "user") return ready.then(function(){ return user; });
     if (n === "downloads") return Promise.resolve(downloads);
+    if (n === "sample") return ready.then(claudeReady);
     return Promise.resolve(null);
   }};
 })();

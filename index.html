@@ -1,3 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Merchant&#39;s Helper</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
@@ -142,6 +144,7 @@ table.lc tr.bad td{background:var(--carry-bg)}
 table.lc tr.mis td{background:var(--warn-bg)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+</head><body>
 
 <div class="wrap">
   <div class="brand">Merchant&#39;s Helper</div>
@@ -166,6 +169,119 @@ table.lc tr.mis td{background:var(--warn-bg)}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+/* Saving layer for the Vercel copy. Only runs when the Claude runtime is absent.
+   It gives the page the same db / user / downloads calls it already uses, backed by Supabase. */
+(function(){
+  if (window.claude) return;
+  var URL_ = "https://pxkhpmatpgkpknxprqsv.supabase.co";
+  var KEY = "sb_publishable_WFNgGJFYy3yd3mDMpWBv1Q_kK13TtMy";   // public key, safe in the page; access is guarded by login + database rules
+  var DOMAIN = "@gudi.net";
+  var sb = window.supabase.createClient(URL_, KEY, {auth: {persistSession: true, autoRefreshToken: true}});
+  var email = null, readyRes, ready = new Promise(function(r){ readyRes = r; });
+
+  /* ---- login screen ---- */
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:#f4f7fb;display:none;align-items:center;justify-content:center;font-family:system-ui,sans-serif;padding:16px";
+  ov.innerHTML = '<form id="gl" style="background:#fff;border:1px solid #cfd8e6;border-radius:10px;padding:24px;width:100%;max-width:340px;box-shadow:0 4px 18px rgba(0,0,0,.08)">' +
+    '<h2 style="margin:0 0 4px;font-size:20px;color:#1f3a5f">Merchant’s Helper</h2>' +
+    '<p style="margin:0 0 16px;color:#556;font-size:13px">Sign in with your Gudi email.</p>' +
+    '<input id="gl-e" type="email" placeholder="name@gudi.net" required autocomplete="username" style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:8px;border:1px solid #b9c4d6;border-radius:6px;font-size:14px">' +
+    '<input id="gl-p" type="password" placeholder="Password (6+ characters)" required minlength="6" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:12px;border:1px solid #b9c4d6;border-radius:6px;font-size:14px">' +
+    '<button id="gl-in" type="submit" style="width:100%;padding:10px;background:#1f5fa8;color:#fff;border:0;border-radius:6px;font-size:14px;cursor:pointer">Sign in</button>' +
+    '<button id="gl-up" type="button" style="width:100%;padding:9px;margin-top:8px;background:#fff;color:#1f5fa8;border:1px solid #1f5fa8;border-radius:6px;font-size:14px;cursor:pointer">Create account</button>' +
+    '<div id="gl-m" style="margin-top:12px;font-size:13px;color:#b3261e;min-height:18px"></div></form>';
+  function mount(){ document.body.appendChild(ov); }
+  if (document.body) mount(); else document.addEventListener("DOMContentLoaded", mount);
+  function msg(t, ok){ var m = ov.querySelector("#gl-m"); if (m){ m.style.color = ok ? "#1b6b3a" : "#b3261e"; m.textContent = t; } }
+  function okEmail(e){ return String(e || "").toLowerCase().slice(-DOMAIN.length) === DOMAIN; }
+  function accept(session){
+    var e = session && session.user && session.user.email;
+    if (!e) return false;
+    if (!okEmail(e)){ sb.auth.signOut(); msg("Only " + DOMAIN + " emails can use this."); return false; }
+    email = e; ov.style.display = "none"; readyRes(); return true;
+  }
+  sb.auth.getSession().then(function(r){ if (!accept(r.data && r.data.session)) ov.style.display = "flex"; });
+  sb.auth.onAuthStateChange(function(ev, s){ if (ev === "SIGNED_OUT"){ email = null; ov.style.display = "flex"; } });
+  ov.addEventListener("submit", function(ev){
+    ev.preventDefault(); msg("");
+    var e = ov.querySelector("#gl-e").value.trim(), p = ov.querySelector("#gl-p").value;
+    if (!okEmail(e)){ msg("Use your " + DOMAIN + " email."); return; }
+    sb.auth.signInWithPassword({email: e, password: p}).then(function(r){
+      if (r.error) msg(/confirm/i.test(r.error.message) ? "Confirm your email first (check your inbox), then sign in." : "Wrong email or password.");
+      else accept(r.data.session);
+    });
+  });
+  ov.addEventListener("click", function(ev){
+    if (ev.target.id !== "gl-up") return;
+    msg("");
+    var e = ov.querySelector("#gl-e").value.trim(), p = ov.querySelector("#gl-p").value;
+    if (!okEmail(e)){ msg("Use your " + DOMAIN + " email."); return; }
+    if (p.length < 6){ msg("Password needs 6 or more characters."); return; }
+    sb.auth.signUp({email: e, password: p}).then(function(r){
+      if (r.error) msg(r.error.message);
+      else if (r.data.session) accept(r.data.session);
+      else msg("Account created. Open the email we sent, confirm it, then sign in.", true);
+    });
+  });
+
+  /* ---- database calls the page already makes ---- */
+  var MAP = {boms: {get: "get_boms", save: "save_bom", del: "delete_bom"}, labelChecks: {get: "get_label_checks", save: "save_label_check", del: "delete_label_check"}};
+  var listeners = {boms: [], labelChecks: []};
+  var busy = {};
+  function fail(e){ var x = new Error((e && e.message) || "failed"); x.code = "unavailable"; return x; }
+  function refresh(name){
+    if (busy[name]) return busy[name];
+    busy[name] = sb.rpc(MAP[name].get).then(function(r){
+      if (r.error) throw fail(r.error);
+      var list = r.data || [];
+      var snap = {docs: list.map(function(o){ var id = o.id; return {id: id, data: function(){ return o; }}; })};
+      listeners[name].forEach(function(l){ try{ l.ok(snap); }catch(e){} });
+    }).catch(function(e){ listeners[name].forEach(function(l){ try{ l.err && l.err(e); }catch(x){} }); })
+      .then(function(){ busy[name] = null; });
+    return busy[name];
+  }
+  setInterval(function(){ if (email && !document.hidden) Object.keys(listeners).forEach(function(n){ if (listeners[n].length) refresh(n); }); }, 30000);
+  document.addEventListener("visibilitychange", function(){ if (email && !document.hidden) Object.keys(listeners).forEach(function(n){ if (listeners[n].length) refresh(n); }); });
+
+  var db = {
+    collection: function(name){ return {onSnapshot: function(ok, err){ listeners[name].push({ok: ok, err: err}); refresh(name); return function(){}; }}; },
+    doc: function(path){
+      var parts = path.split("/"), name = parts[0], id = parts[1];
+      return {
+        set: function(body){
+          var p = JSON.parse(JSON.stringify(body)); p.id = id;
+          return sb.rpc(MAP[name].save, {p: p}).then(function(r){ if (r.error) throw fail(r.error); return refresh(name); });
+        },
+        delete: function(){
+          return sb.rpc(MAP[name].del, {p_id: id}).then(function(r){ if (r.error) throw fail(r.error); return refresh(name); });
+        }
+      };
+    }
+  };
+  var user = {
+    id: function(){ return Promise.resolve(email); },
+    can: function(){ return Promise.resolve(true); },
+    profiles: function(ids){ var o = {}; (ids || []).forEach(function(i){ o[i] = {name: String(i).split("@")[0]}; }); return Promise.resolve(o); }
+  };
+  var downloads = {
+    save: function(o){
+      var data = o.data, type = o.mimeType || (/\.pdf$/i.test(o.filename) ? "application/pdf" : /\.csv$/i.test(o.filename) ? "text/csv" : "application/octet-stream");
+      var url = URL.createObjectURL(new Blob([data], {type: type}));
+      var a = document.createElement("a"); a.href = url; a.download = o.filename; document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1000);
+      return Promise.resolve();
+    }
+  };
+  window.claude = {use: function(n){
+    if (n === "db") return ready.then(function(){ return db; });
+    if (n === "user") return ready.then(function(){ return user; });
+    if (n === "downloads") return Promise.resolve(downloads);
+    return Promise.resolve(null);
+  }};
+})();
+</script>
 <script>
 /* ---------- constants ---------- */
 var C = window.claude;
@@ -1554,3 +1670,4 @@ function lcOpen(id){
   });
 })();
 </script>
+</body></html>

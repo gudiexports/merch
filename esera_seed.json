@@ -1,0 +1,40 @@
+{
+"style":"2130638 ESERA","description":"Woven top, regular fit. Peter pan collar with scallop embroidery, button front, gathered sleeves with elastic frill cuffs","buyer":"LC Waikiki","brand":"LCW Kids","season":"2027W","color":"R9J Ecru","category":"Kids","baseSize":"3-4y","fabricWidth":"58 (assumed)",
+"notes":"Built from the tech pack dated 08.10.2026 and the Mutosen BoM as the layout and rate reference. Fabric width, fabric rate, interlining, button 18L, embroidery and piping rates still needed.",
+"status":"Draft","version":1,"fx":91,"created":"2026-10-21T13:00:00.000Z","updated":"2026-10-21T13:00:00.000Z","createdBy":null,
+"rows":[
+{"group":"Fabric","article":"Poplin-Cotton 100%-40s Ring Combed 53x30 125 GSM Reactive Dyed Carbon Brushed (370589)","body":"","color":"Ecru (R9J)","size":"58 Inch (assumed)","uom":"Mtr","cons":0.65,"wastage":3,"rate":null,"status":"est","basis":"Area about 6,900 sq cm / 80% marker / 147 cm width = 0.59 m, rounded up to 0.65 m. Marker to confirm."},
+{"group":"Trims","article":"Label-Size Label, Printed LCW Kids (T723404)","body":"","color":"","size":"[All]","uom":"PCS","cons":1,"wastage":4,"rate":0.95,"status":"carry","basis":"Qty 1 per tech pack. Rate is Mutosen size label, confirm."},
+{"group":"Trims","article":"Button-Poly 4 Hole-18L (T17198)","body":"","color":"Ecru (R9J)","size":"18L","uom":"Gross","cons":0.041667,"wastage":2,"rate":null,"status":"tp","basis":"6 buttons (POM A02). Tech pack BoM says 5. Mutosen 16L was 73 per gross, 18L rate needed."},
+{"group":"Trims","article":"Elastic-Knitted Polyester 7 mm (T4046)","body":"","color":"[Not given]","size":"7mm","uom":"Mtr","cons":0.2,"wastage":4,"rate":4.15,"status":"est","basis":"2 pcs, one per cuff, about 10 cm cut each. Rate is Mutosen elastic, confirm width."},
+{"group":"Trims","article":"Interlining-Middle Touch (T3255, T-WK521)","body":"","color":"[Not given]","size":"36 Inch (assumed)","uom":"Mtr","cons":0.1,"wastage":5,"rate":null,"status":"est","basis":"Collar and placket, about 540 sq cm fused. Width and rate needed."},
+{"group":"Trims","article":"Label-Inner Barcode Wash Label 35x100 (T742846)","body":"","color":"","size":"[All]","uom":"PCS","cons":1,"wastage":4,"rate":4.9,"status":"carry","basis":"Wash-care and barcode label. Rate is Mutosen inner label, confirm."},
+{"group":"Trims","article":"Tag-Hang Tag with Barcode (T610566)","body":"","color":"[All]","size":"[All]","uom":"PCS","cons":1,"wastage":2,"rate":1.1,"status":"carry","basis":"Tech pack says carton label, picture is a hang tag. Confirm."},
+{"group":"Trims","article":"Embroidery-Collar Scallop Edge, job work (N652590)","body":"","color":"Ecru","size":"Top collar x2","uom":"PCS","cons":1,"wastage":0,"rate":null,"status":"tp","basis":"As per artwork. Job-work rate needed."},
+{"group":"Trims","article":"Piping-1 cm trim in collar seam, 0.5 cm visible","body":"","color":"[Not given]","size":"10mm","uom":"Mtr","cons":0.45,"wastage":4,"rate":null,"status":"est","basis":"Sketch note only. Collar outer edge about 40 cm."},
+{"group":"Trims","article":"Thread-Polyester Core Spun (Lockstitch needle)","body":"","color":"Ecru","size":"","uom":"Mtr","cons":22,"wastage":4,"rate":0.0346,"status":"est","basis":"Seam length x ratio. Rate from Mutosen."},
+{"group":"Trims","article":"Thread-Polyester Spun-30 Tex (Lockstitch bobbin)","body":"","color":"Ecru","size":"","uom":"Mtr","cons":22,"wastage":4,"rate":0.019,"status":"est","basis":"Same length as needle thread."},
+{"group":"Trims","article":"Thread-Polyester Spun-21 Tex (Overlock)","body":"","color":"Ecru","size":"","uom":"Mtr","cons":45,"wastage":4,"rate":0.011,"status":"est","basis":"Side, sleeve, armhole, shoulder, frill, placket edges."},
+{"group":"Trims","article":"Thread-Polyester Spun-27 Tex (Buttonhole and button attach)","body":"Kaj","color":"Ecru","size":"","uom":"Mtr","cons":6,"wastage":4,"rate":0.0259,"status":"est","basis":"6 buttonholes and 6 buttons."},
+{"group":"Trims","article":"Kimble-Plastic 65 MM","body":"","color":"Transparent","size":"65mm","uom":"PCS","cons":1,"wastage":4,"rate":0.032,"status":"carry","basis":"Hang tag attachment. Not in tech pack."},
+{"group":"Trims","article":"Tag-Safety-LCW","body":"","color":"","size":"","uom":"PCS","cons":1,"wastage":3,"rate":1.5,"status":"carry","basis":"Not in Esera tech pack. Confirm if needed."},
+{"group":"Trims","article":"Sticker-Color Red","body":"","color":"Red","size":"","uom":"PCS","cons":0.0192,"wastage":2,"rate":0.45,"status":"carry","basis":"Packing, from Mutosen."},
+{"group":"Trims","article":"Sticker-Color Blue","body":"","color":"Blue","size":"","uom":"PCS","cons":0.0058,"wastage":2,"rate":0.45,"status":"carry","basis":"Packing, from Mutosen."},
+{"group":"Trims","article":"Sticker-Color Black","body":"","color":"Black","size":"","uom":"PCS","cons":0.0019,"wastage":2,"rate":0.45,"status":"carry","basis":"Packing, from Mutosen."},
+{"group":"Trims","article":"PolyBag-Master Polybag LDPE","body":"Master","color":"","size":"20x32","uom":"PCS","cons":0.054,"wastage":2,"rate":7.5,"status":"carry","basis":"Packing, re-set size and ratio."},
+{"group":"Trims","article":"PolyBag-PP-160 Gauge-Print","body":"","color":"","size":"11X14.5+2","uom":"PCS","cons":1,"wastage":2,"rate":2.0,"status":"carry","basis":"Packing, check bag size for this blouse."},
+{"group":"Trims","article":"PolyBag-LDPE-200 Gauge-Print (carton bag)","body":"Carton","color":"","size":"60x40x42","uom":"PCS","cons":0.0192,"wastage":2,"rate":15.0,"status":"carry","basis":"About 52 pcs per carton in Mutosen."},
+{"group":"Trims","article":"Carton-Box-5 Ply","body":"","color":"","size":"L58xW38xH40","uom":"PCS","cons":0.0192,"wastage":2,"rate":86.0,"status":"carry","basis":"About 52 pcs per carton in Mutosen. A thin blouse packs more."}
+],
+"flags":[
+{"item":"Button count","note":"Tech pack BoM and sketch say 5, measurement sheet (3-4y) says 6. BoM uses 6."},
+{"item":"Fabric width and rate","note":"No width in tech pack, 58 in assumed. At 44/45 in consumption rises about 25-30%. No rate yet."},
+{"item":"Piping in collar seam","note":"Only in sketch notes (1 cm, 0.5 cm visible). Self-fabric or bought piping?"},
+{"item":"T610566 label","note":"Named carton label, picture is a hang tag with price. Costed as hang tag."},
+{"item":"Collar embroidery","note":"One job-work line, rate needed. Embroidery thread sits inside that rate."},
+{"item":"Care label","note":"T742846 is the wash-care and barcode inner label, so no separate care label added."},
+{"item":"Thread","note":"Seam length x ratio estimate. Check on first sample."},
+{"item":"Packing lines","note":"Carried from Mutosen. Bag size and pieces per carton need re-setting for this blouse."}
+],
+"files":[],"techText":""
+}

@@ -1,0 +1,1556 @@
+<title>Merchant&#39;s Helper</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: library of BoMs (filter bar + list) that opens into a workbench: inputs and uploads on top, editable BoM sheet below, open items last. */
+:root{
+  --bg:#f6f8fb; --surface:#ffffff; --ink:#18212f; --muted:#5b6678; --line:#d5dce7;
+  --head:#dce9f7; --group:#eaf2fb; --accent:#1f5fa8; --accent-ink:#ffffff; --input:#0b3fd1;
+  --warn-bg:#fff3b0; --warn-line:#c9a800; --bad:#b3261e;
+  --est-bg:#fff2cc; --est-fg:#7a5a00; --carry-bg:#fde6d6; --carry-fg:#8a3d12; --tp-bg:#e3eefb; --tp-fg:#1f4f86;
+  --ok-bg:#dff3e4; --ok-fg:#1d6b34; --total:#ffe699;
+  --bar:#714b67; --bar-ink:#ffffff; --bar-soft:#f1e8ef;
+  --font-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1520; --surface:#161e2c; --ink:#e6ebf3; --muted:#9aa6ba; --line:#2b3649;
+  --head:#1e2e47; --group:#192539; --accent:#7db4f0; --accent-ink:#0f1520; --input:#8db8ff;
+  --warn-bg:#5a4b00; --warn-line:#a88b00; --bad:#ff8a80;
+  --est-bg:#4a3b0a; --est-fg:#f0cf74; --carry-bg:#4d2a17; --carry-fg:#f2b48c; --tp-bg:#1d3556; --tp-fg:#a9cdf5;
+  --ok-bg:#173a24; --ok-fg:#8fd9a6; --total:#6b5810;
+  --bar:#7b5571; --bar-ink:#ffffff; --bar-soft:#2b2030; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1520; --surface:#161e2c; --ink:#e6ebf3; --muted:#9aa6ba; --line:#2b3649;
+  --head:#1e2e47; --group:#192539; --accent:#7db4f0; --accent-ink:#0f1520; --input:#8db8ff;
+  --warn-bg:#5a4b00; --warn-line:#a88b00; --bad:#ff8a80;
+  --est-bg:#4a3b0a; --est-fg:#f0cf74; --carry-bg:#4d2a17; --carry-fg:#f2b48c; --tp-bg:#1d3556; --tp-fg:#a9cdf5;
+  --ok-bg:#173a24; --ok-fg:#8fd9a6; --total:#6b5810;
+  --bar:#7b5571; --bar-ink:#ffffff; --bar-soft:#2b2030; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.45;
+  padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1360px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--accent);text-wrap:balance}
+h2{font-size:15px;margin:0;font-weight:700}
+.top{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between}
+.sub{color:var(--muted);font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font-family:var(--font-body);font-size:13px;padding:7px 13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:3px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.danger{color:var(--bad)}
+button.link{border:0;background:none;color:var(--accent);padding:2px 4px;text-decoration:underline}
+input,select,textarea{font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:6px 8px;border-radius:3px;min-width:0}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+textarea{width:100%;resize:vertical;min-height:90px;line-height:1.4}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0}
+label.f input,label.f select{font-size:14px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--ink);width:100%}
+.panel{background:var(--surface);border:1px solid var(--line);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 14px}
+.banner{padding:8px 12px;border:1px solid var(--warn-line);background:var(--warn-bg);font-size:13px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px;align-items:end}
+.tablebox{overflow-x:auto;border:1px solid var(--line);background:var(--surface)}
+table{border-collapse:collapse;width:100%}
+table.bom{min-width:560px}
+table.lib{min-width:1200px}
+th{background:var(--head);font-weight:600;font-size:12px;text-align:left;padding:8px;border:1px solid var(--line);white-space:nowrap}
+td{padding:5px 8px;border:1px solid var(--line);vertical-align:top;font-size:13px}
+td.n,th.n{text-align:right}
+td.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+tr.grp td{background:var(--group);font-weight:700}
+table.lib tbody tr{cursor:pointer}
+table.lib tbody tr:hover td{background:var(--group)}
+table.lib td b{font-weight:600}
+table.lib small{display:block;color:var(--muted);font-size:12px}
+.cell{font-family:var(--font-num);font-size:13px;text-align:right;color:var(--input);width:84px}
+.cell.need{background:var(--warn-bg);border-color:var(--warn-line)}
+.t{width:100%;min-width:90px;color:var(--ink)}
+.t.art{min-width:340px}
+.t.bas{min-width:300px;font-size:12px;color:var(--muted)}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:2px;white-space:nowrap}
+.s-tp{background:var(--tp-bg);color:var(--tp-fg)}.s-est{background:var(--est-bg);color:var(--est-fg)}.s-carry{background:var(--carry-bg);color:var(--carry-fg)}.s-wfx{background:var(--ok-bg);color:var(--ok-fg)}
+.st-Draft{background:var(--est-bg);color:var(--est-fg)}.st-Reviewed{background:var(--tp-bg);color:var(--tp-fg)}.st-Accepted{background:var(--ok-bg);color:var(--ok-fg)}
+.pendchip{background:var(--warn-bg);color:var(--ink)}.okchip{background:var(--ok-bg);color:var(--ok-fg)}
+.drop{border:2px dashed var(--line);padding:18px;text-align:center;color:var(--muted);cursor:pointer;background:var(--bg)}
+.drop.over{border-color:var(--accent);background:var(--group)}
+.files{display:flex;flex-wrap:wrap;gap:8px}
+.file{display:flex;align-items:center;gap:8px;border:1px solid var(--line);padding:4px 8px;font-size:12px;background:var(--surface);max-width:100%}
+.file img{width:44px;height:44px;object-fit:cover;border:1px solid var(--line)}
+.file span{overflow-wrap:anywhere;min-width:0}
+.totals{display:flex;flex-wrap:wrap;gap:10px 32px;align-items:center;justify-content:space-between;background:var(--total);padding:12px 16px;border:1px solid var(--line)}
+.totals .big{font-family:var(--font-num);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}
+.totals small{font-size:12px;opacity:.85}
+.msg{font-size:13px;color:var(--muted);min-height:20px}
+.msg.err{color:var(--bad)}
+.flags{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:4px 24px}
+.flags li{padding:8px 0;border-top:1px solid var(--line);min-width:0;display:flex;gap:8px;justify-content:space-between}
+.flags b{display:block;font-size:13px}.flags span{color:var(--muted);font-size:13px}
+.legend{color:var(--muted);font-size:12px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.sheet{background:var(--surface);border:1px solid var(--line);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.sh-co{display:flex;flex-direction:column;font-size:13px;line-height:1.4}
+.sh-co b{font-size:15px;font-weight:600}
+.sh-title{color:var(--bar);font-size:16px;font-weight:700;margin:6px 0 0}
+.sh-box{border:1px solid var(--line);padding:8px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.sh-box>b{color:var(--bar);font-size:14px}
+.sh-sec{font-size:12px;font-weight:700;letter-spacing:.05em;margin-top:4px}
+.sheet th{background:var(--bar);color:var(--bar-ink);border-color:var(--bar);text-align:center;font-weight:500}
+.sheet tr.tot td{background:var(--bar-soft);font-weight:700}
+.sheet td.lab{text-align:right}
+.sheet tr.bar td{background:var(--bar);color:var(--bar-ink);font-weight:700;border-color:var(--bar)}
+.sheet table.rep{min-width:0}
+.sheet .sum{align-self:flex-end;width:min(560px,100%)}
+.sheet:not(.detail) .x{display:none}
+.sheet.detail table.bom{min-width:1500px}
+.sh-tools{gap:8px 10px}
+.view{display:flex;flex-direction:column;gap:18px}
+.brand{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:9px 16px;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
+.tab:hover:not(:disabled){color:var(--ink);border-color:transparent;border-bottom-color:var(--line)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+
+#lc-result{display:flex;flex-direction:column;gap:14px}
+#lc-result:empty{display:none}
+.lc-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.lc-slot{border:1px solid var(--line);background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.lc-slot.have{border-color:var(--accent)}
+.lc-slot h3{margin:0;font-size:13px;font-weight:700}
+.lc-slot .hint{font-size:12px;color:var(--muted)}
+.lc-slot input[type=file]{font-size:12px;width:100%}
+.lc-verdict{padding:14px 16px;border:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.lc-verdict b{font-size:20px}
+.lc-verdict.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.lc-verdict.check{background:var(--est-bg);color:var(--est-fg)}
+.lc-verdict.hold{background:var(--carry-bg);color:var(--carry-fg)}
+.lc-verdict.incomplete{background:var(--tp-bg);color:var(--tp-fg)}
+.lc-find{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.lc-find li{border:1px solid var(--line);padding:8px 12px;display:flex;gap:10px;align-items:flex-start;min-width:0;background:var(--surface)}
+.lc-find li>div{min-width:0;overflow-wrap:anywhere}
+.lc-find small{display:block;color:var(--muted);font-size:12px}
+.chip.block{background:var(--carry-bg);color:var(--carry-fg)}
+.chip.chk{background:var(--est-bg);color:var(--est-fg)}
+.chip.good{background:var(--ok-bg);color:var(--ok-fg)}
+.chip.na{background:var(--group);color:var(--muted)}
+table.lc{min-width:820px}
+table.lc td.v{max-width:200px;overflow-wrap:anywhere;font-size:12px}
+table.lc tr.bad td{background:var(--carry-bg)}
+table.lc tr.mis td{background:var(--warn-bg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="brand">Merchant&#39;s Helper</div>
+  <div class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tab-bom" class="tab" aria-selected="true" aria-controls="app" data-tab="bom">Build BoM</button>
+    <button type="button" role="tab" id="tab-lbl" class="tab" aria-selected="false" aria-controls="pane-label" data-tab="label" tabindex="-1">Label Checker</button>
+  </div>
+  <div id="app" class="view" role="tabpanel" aria-labelledby="tab-bom"></div>
+  <div id="pane-label" class="view" role="tabpanel" aria-labelledby="tab-lbl" hidden>
+    <div class="top"><div><h1>Label Checker</h1><div class="sub">Add the PO, tech pack, FPT report and the buyer portal layouts. Claude checks the wash care label and the price tag against them and says whether they can be ordered.</div></div>
+      <div class="row"><button id="lc-new" type="button">Clear and start new</button></div></div>
+    <div class="panel"><div class="fields">
+      <label class="f">Style<input id="lc-style" type="text" autocomplete="off"></label>
+      <label class="f">PO number<input id="lc-po" type="text" autocomplete="off"></label>
+      <label class="f">Buyer<input id="lc-buyer" type="text" autocomplete="off" placeholder="LC Waikiki"></label>
+    </div>
+    <div class="lc-slots" id="lc-slots"></div>
+    <label class="f">Notes for Claude (optional)<textarea id="lc-notes" placeholder="e.g. PO is for the dress only, the belt is a separate style"></textarea></label>
+    <div class="row"><button id="lc-run" class="primary" type="button">Check the labels</button><button id="lc-stop" type="button" hidden>Stop</button><span class="msg" id="lc-msg" role="status"></span></div></div>
+    <div id="lc-result"></div>
+    <div id="lc-hist"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- constants ---------- */
+var C = window.claude;
+var UOMS = ["Mtr","PCS","Gross","Kgs","Yds","Set","Cone"];
+var STATUS_LBL = {tp:"Tech pack", est:"Estimate", carry:"Carried from reference", wfx:"WFX costing"};
+var BOM_STATUSES = ["New","Wip","Send to Buyer","Buyer Approved","Send for Internal Apr","Internal Approved"];
+var ST_CLS = {"New": "na", "Wip": "s-est", "Send to Buyer": "s-tp", "Send for Internal Apr": "s-tp", "Buyer Approved": "okchip", "Internal Approved": "okchip", "Draft": "s-est", "Reviewed": "s-tp", "Accepted": "okchip"};
+var SEASONS = ["Summer","Autumn","Winter","Rainy / Monsoon"];
+var PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+var PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+// Reference lines from the Mutosen BoM (rates in INR). Used to prefill rates for the same kind of item.
+var REF = [
+ "Label-MainCumSizeLabel | PCS | wastage 4 | rate 0.95",
+ "Button-Abs-Plastic-16L | Gross | wastage 2 | rate 73.00 (16L; other sizes differ)",
+ "Elastic-Knitted | Mtr | wastage 4 | rate 4.15",
+ "Label-Wash Care (LCW) | PCS | wastage 4 | rate 2.63 (alt 3.15)",
+ "Label-InnerLabel plain | PCS | wastage 4 | rate 1.20",
+ "Label-InnerLabel with barcode / wash inner label | PCS | wastage 4 | rate 4.90",
+ "Thread-Polyester Core Spun (lockstitch needle) | Mtr | wastage 4 | rate 0.0346",
+ "Thread-Polyester Spun-30 Tex (lockstitch bobbin) | Mtr | wastage 4 | rate 0.0190",
+ "Thread-Polyester Spun-21 Tex (overlock) | Mtr | wastage 4 | rate 0.0110",
+ "Thread-Polyester Spun-27 Tex (buttonhole / button attach, body type Kaj) | Mtr | wastage 4 | rate 0.0259",
+ "Kimble-Plastic 65 MM | PCS | cons 1 | wastage 4 | rate 0.0320",
+ "Tag-Tag with Barcode (hang tag) | PCS | cons 1 | wastage 2 | rate 1.10",
+ "Tag-Safety-LCW | PCS | cons 1 | wastage 3 | rate 1.50",
+ "Sticker-Color Red | PCS | cons 0.0192 | wastage 2 | rate 0.45",
+ "Sticker-Color Blue | PCS | cons 0.0058 | wastage 2 | rate 0.45",
+ "Sticker-Color Black | PCS | cons 0.0019 | wastage 2 | rate 0.45",
+ "PolyBag-Master Polybag LDPE 20x32 | PCS | cons 0.0540 | wastage 2 | rate 7.50",
+ "PolyBag-PP-160 Gauge-Print 11X14.5+2 | PCS | cons 1 | wastage 2 | rate 2.00",
+ "PolyBag-LDPE-200 Gauge-Print carton bag 60x40x42 | PCS | cons 0.0192 | wastage 2 | rate 15.00",
+ "Carton-Box-5 Ply L58xW38xH40 | PCS | cons 0.0192 | wastage 2 | rate 86.00",
+ "Dori-Cotton 10mm | Mtr | wastage 4 | rate 6.1668",
+ "Patti-Fabric | Mtr | wastage 4 | rate 0.30",
+ "Tape-Mobilon 6 MM | Mtr | wastage 4 | rate 1.00",
+ "Thread-Water Soluble | Mtr | wastage 4 | rate 0.10"
+];
+
+/* ---------- helpers ---------- */
+function $(s, r){ return (r || document).querySelector(s); }
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function num(v){ var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function f4(x){ return (isFinite(x) ? x : 0).toFixed(4); }
+function f2(x){ return (isFinite(x) ? x : 0).toFixed(2); }
+function uid(){ return "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function nowIso(){ return new Date().toISOString(); }
+function localDay(iso){ var d = new Date(iso); if (isNaN(d)) return ""; var m = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (dd < 10 ? "0" : "") + dd; }
+function fmtDate(iso){ var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"}); }
+function use(n){ return (C && C.use) ? C.use(n).catch(function(){ return null; }) : Promise.resolve(null); }
+function inc(r){ return num(r.cons) * (1 + num(r.wastage) / 100); }
+function inr(r){ return inc(r) * num(r.rate); }
+function hasRate(r){ return r.rate !== null && r.rate !== "" && r.rate !== undefined; }
+var IND_DEFAULT = [
+  {name: "Transportation Charge", kind: "pct", budget: 10},
+  {name: "Insurance charge", kind: "pct", budget: 0},
+  {name: "Finance Cost", kind: "pct", budget: 10},
+  {name: "Overhead", kind: "pct", budget: 20},
+  {name: "Loss Of Drawback", kind: "pct", budget: 0},
+  {name: "Testing Charges", kind: "amt", budget: 2}
+];
+var IND_OLD = ["Transportation Charge", "Finance Cost", "Testing Charges", "Overhead"];
+var PROD = [["cutting", "Cutting"], ["stitching", "Stitching"], ["finishing", "Finishing"], ["packing", "Packing"]];
+// Production cost is a free list of operations [{name, amount}], like WFX. Older BoMs stored an object with four fixed keys.
+function prodList(b){
+  if (Array.isArray(b.prod)) return b.prod;
+  var o = b.prod || {};
+  return PROD.map(function(p){ var v = o[p[0]]; return {name: p[1], amount: (v === undefined || v === "") ? null : v}; });
+}
+function ensureCost(b){
+  b.prod = prodList(b);
+  if (!b.indirect || !b.indirect.length) b.indirect = JSON.parse(JSON.stringify(IND_DEFAULT));
+  else if (b.indirect.length === IND_OLD.length && b.indirect.every(function(x, i){ return x.name === IND_OLD[i]; })){
+    // old 4-line default: move to the new 6-line format, keep the budgets already entered
+    var oldBy = {}; b.indirect.forEach(function(x){ oldBy[x.name] = x; });
+    b.indirect = JSON.parse(JSON.stringify(IND_DEFAULT)).map(function(d){ return oldBy[d.name] ? {name: d.name, kind: oldBy[d.name].kind, budget: oldBy[d.name].budget} : d; });
+  }
+  if (b.profit === undefined) b.profit = null;
+  if (b.bomType === undefined || b.bomType === null) b.bomType = "";
+  return b;
+}
+function costOf(b){
+  var fx = num(b.fx) || 91, fab = 0, trm = 0, pend = 0, rows = b.rows || [];
+  rows.forEach(function(r){ var v = inr(r); if (r.group === "Fabric") fab += v; else trm += v; if (!hasRate(r)) pend++; });
+  var pt = 0;
+  prodList(b).forEach(function(p){ pt += num(p.amount); });
+  var mat = fab + trm, base = mat + pt;
+  var ind = (b.indirect && b.indirect.length ? b.indirect : IND_DEFAULT).map(function(x){ return x.kind === "pct" ? base * num(x.budget) / 100 : num(x.budget); });
+  var it = 0; ind.forEach(function(a){ it += a; });
+  var all = base + it, pa = all * num(b.profit) / 100, sell = all + pa;
+  return {fab: fab, trm: trm, mat: mat, pt: pt, base: base, ind: ind, it: it, all: all, pa: pa, sell: sell, usd: sell / fx, pending: pend, lines: rows.length, hasProd: pt > 0};
+}
+function totals(b){
+  var c = costOf(b);
+  return {inr: c.mat, usd: c.mat / (num(b.fx) || 91), pending: c.pending, lines: c.lines, c: c};
+}
+function ratesText(c){ return c.pending ? c.pending + " pending" : "Complete"; }
+function bomInfo(b, c){ return [["Description", b.description || ""], ["Buyer", b.buyer || ""], ["Brand", b.brand || ""], ["Season", b.season || ""], ["Status", b.status || "New"], ["Rates", ratesText(c)]]; }
+function csvEsc(v){ var s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function safeName(s){ return String(s || "BoM").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "BoM"; }
+
+/* ---------- state ---------- */
+var db = null, sample = null, assets = null, downloads = null, userCap = null;
+var myId = null, canWrite = true, dbLoaded = false, dbError = "";
+var boms = new Map();
+var cur = null;            // BoM being edited
+var sess = {pdfs: [], images: []};   // uploads held for this visit only
+var view = "list";
+var names = {};            // id -> display name
+var saveChain = Promise.resolve(), saveTimer = null, ctl = null, undoRows = null;
+var detailOn = false;   // show extra columns (body, colour, size, status, remarks)
+
+/* ---------- tabs ---------- */
+var TABS = [{key: "bom", tab: "tab-bom", pane: "app"}, {key: "label", tab: "tab-lbl", pane: "pane-label"}];
+function showTab(key){
+  TABS.forEach(function(t){
+    var on = t.key === key, b = document.getElementById(t.tab);
+    b.setAttribute("aria-selected", on ? "true" : "false"); b.tabIndex = on ? 0 : -1;
+    document.getElementById(t.pane).hidden = !on;
+  });
+}
+document.querySelector(".tabs").addEventListener("click", function(e){
+  var b = e.target.closest("[data-tab]"); if (b) showTab(b.getAttribute("data-tab"));
+});
+document.querySelector(".tabs").addEventListener("keydown", function(e){
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  var i = TABS.findIndex(function(t){ return document.getElementById(t.tab).getAttribute("aria-selected") === "true"; });
+  var n = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+  showTab(n.key); document.getElementById(n.tab).focus();
+});
+$("#app").addEventListener("input", onEditorInput);   // once, the editor re-renders inside #app
+
+/* ---------- boot ---------- */
+renderListShell();
+use("sample").then(function(s){ sample = s; });
+use("assets").then(function(a){ assets = a; });
+use("downloads").then(function(d){ downloads = d; });
+Promise.all([use("db"), use("user")]).then(async function(r){
+  db = r[0]; userCap = r[1];
+  try{ if (userCap){ myId = await userCap.id(); var cw = await userCap.can("data.write"); canWrite = cw !== false; } }catch(e){}
+  if (!db){ dbLoaded = true; dbError = "unavailable"; if (view === "list") renderListRows(); lcRenderHist(); return; }
+  lcListen();
+  db.collection("boms").onSnapshot(function(snap){
+    boms.clear();
+    snap.docs.forEach(function(d){
+      var raw = d.data();
+      if (!raw) return;
+      var o = JSON.parse(JSON.stringify(raw));   // snapshots are read-only, work on a copy
+      o.id = d.id; boms.set(d.id, o);
+    });
+    dbLoaded = true; dbError = "";
+    resolveNames().then(function(){ if (view === "list") renderListRows(); });
+    if (view === "list") renderListRows();
+  }, function(e){ dbLoaded = true; dbError = (e && e.code) || "unavailable"; if (view === "list") renderListRows(); });
+});
+function resolveNames(){
+  if (!userCap || !userCap.profiles) return Promise.resolve();
+  var ids = [], seen = {};
+  boms.forEach(function(b){ if (b.createdBy && !seen[b.createdBy]) { seen[b.createdBy] = 1; ids.push(b.createdBy); } });
+  if (!ids.length) return Promise.resolve();
+  return userCap.profiles(ids).then(function(ps){ ids.forEach(function(id){ if (ps && ps[id]) names[id] = ps[id].name || ""; }); }).catch(function(){});
+}
+function who(id){ if (!id) return ""; if (id === myId) return "You"; return names[id] || "Teammate"; }
+
+/* ---------- library view ---------- */
+function renderListShell(){
+  view = "list"; cur = null;
+  $("#app").innerHTML =
+   '<div class="top"><div><h1>Build BoM</h1><div class="sub">Every bill of material in one place. Filter, open, copy or start a new one from a tech pack.</div></div>' +
+   '<div class="row"><button id="exp-list" type="button">Export list (CSV)</button><button id="imp-wfx" type="button">Import WFX costing (PDF)</button><input id="imp-wfx-file" type="file" accept="application/pdf" hidden><button id="new" class="primary" type="button">+ New BoM</button></div></div>' +
+   '<div id="dbnote"></div>' +
+   '<div class="panel"><div class="filters">' +
+   '<label class="f">Search style or notes<input id="q" type="search" placeholder="e.g. 2130638 or collar"></label>' +
+   '<label class="f">Buyer<select id="fb"></select></label>' +
+   '<label class="f">Brand<select id="fr"></select></label>' +
+   '<label class="f">Season<select id="fs"></select></label>' +
+   '<label class="f">Status<select id="ft"><option value="">All</option>' + BOM_STATUSES.map(function(s){ return '<option>' + s + '</option>'; }).join("") + '</select></label>' +
+   '<label class="f">Rates<select id="fp"><option value="">All</option><option value="y">Has pending rates</option><option value="n">All rates filled</option></select></label>' +
+   '<label class="f">Created from<input id="fd1" type="date"></label>' +
+   '<label class="f">Created to<input id="fd2" type="date"></label>' +
+   '<label class="f">Sort<select id="so"><option value="cd">Created, newest</option><option value="ca">Created, oldest</option><option value="ud">Updated, newest</option><option value="sa">Style A-Z</option><option value="vd">Cost, high to low</option></select></label>' +
+   '<div><button id="clr" type="button">Clear filters</button></div></div></div>' +
+   '<div class="msg" id="count"></div>' +
+   '<div class="tablebox"><table class="lib"><thead><tr><th>Style</th><th>Buyer</th><th>Brand</th><th>Season</th><th>Colour</th><th class="n">Lines</th><th>Rates</th><th class="n">Material (INR)</th><th class="n">Total cost (INR)</th><th class="n">Selling price (INR)</th><th>Status</th><th>Created</th><th>By</th></tr></thead><tbody id="lrows"></tbody></table></div>';
+  $("#new").onclick = function(){ openEditor(newBom()); };
+  $("#exp-list").onclick = exportList;
+  $("#imp-wfx").onclick = function(){ $("#imp-wfx-file").click(); };
+  $("#imp-wfx-file").onchange = function(){ var f = this.files && this.files[0]; this.value = ""; if (!f) return; openEditor(newBom()); importWfx(f); };
+  $("#clr").onclick = function(){ ["q","fb","fr","fs","ft","fp","fd1","fd2"].forEach(function(i){ $("#" + i).value = ""; }); renderListRows(); };
+  ["q","fb","fr","fs","ft","fp","fd1","fd2","so"].forEach(function(i){ $("#" + i).addEventListener("input", renderListRows); });
+  $("#lrows").addEventListener("click", function(e){
+    var tr = e.target.closest("tr[data-id]"); if (!tr) return;
+    var b = boms.get(tr.getAttribute("data-id")); if (b) openEditor(JSON.parse(JSON.stringify(b)));
+  });
+  $("#lrows").addEventListener("keydown", function(e){
+    if (e.key !== "Enter") return;
+    var tr = e.target.closest("tr[data-id]"); if (!tr) return;
+    var b = boms.get(tr.getAttribute("data-id")); if (b) openEditor(JSON.parse(JSON.stringify(b)));
+  });
+  renderListRows();
+}
+function fillSelect(id, label, values){
+  var el = $("#" + id), keep = el.value;
+  el.innerHTML = '<option value="">' + label + '</option>' + values.map(function(v){ return '<option>' + esc(v) + '</option>'; }).join("");
+  el.value = values.indexOf(keep) >= 0 ? keep : "";
+}
+function uniq(field){
+  var s = {}; boms.forEach(function(b){ if (b[field]) s[b[field]] = 1; });
+  return Object.keys(s).sort();
+}
+function renderListRows(){
+  if (view !== "list" || !$("#lrows")) return;
+  fillSelect("fb", "All buyers", uniq("buyer"));
+  fillSelect("fr", "All brands", uniq("brand"));
+  fillSelect("fs", "All season", SEASONS);
+  var note = $("#dbnote");
+  note.innerHTML = (!db && dbLoaded) ? '<div class="banner">Saving is not available in this view, so BoMs you make here are not stored. You can still build one and export it as CSV.</div>' :
+                   (!canWrite ? '<div class="banner">You have view-only access. You can open BoMs but not change them.</div>' : "");
+  var q = $("#q").value.trim().toLowerCase(), fb = $("#fb").value, fr = $("#fr").value, fs = $("#fs").value, ft = $("#ft").value, fp = $("#fp").value;
+  var d1 = $("#fd1").value, d2 = $("#fd2").value, so = $("#so").value;
+  var list = [];
+  boms.forEach(function(b){
+    var t = totals(b); b._t = t;
+    if (q && (b.style + " " + (b.description || "") + " " + (b.notes || "") + " " + (b.color || "")).toLowerCase().indexOf(q) < 0) return;
+    if (fb && b.buyer !== fb) return; if (fr && b.brand !== fr) return; if (fs && b.season !== fs) return; if (ft && b.status !== ft) return;
+    if (fp === "y" && !t.pending) return; if (fp === "n" && t.pending) return;
+    var day = localDay(b.created); if (d1 && day < d1) return; if (d2 && day > d2) return;
+    list.push(b);
+  });
+  list.sort(function(a, b){
+    if (so === "ca") return (a.created || "") < (b.created || "") ? -1 : 1;
+    if (so === "ud") return (a.updated || "") < (b.updated || "") ? 1 : -1;
+    if (so === "sa") return String(a.style || "").localeCompare(String(b.style || ""));
+    if (so === "vd") return b._t.inr - a._t.inr;
+    return (a.created || "") < (b.created || "") ? 1 : -1;
+  });
+  window._listShown = list;
+  $("#count").textContent = !dbLoaded ? "Loading BoMs..." : (list.length + " of " + boms.size + " BoMs");
+  if (!dbLoaded){ $("#lrows").innerHTML = '<tr><td colspan="13" class="empty">Loading BoMs...</td></tr>'; return; }
+  if (!list.length){
+    $("#lrows").innerHTML = '<tr><td colspan="13" class="empty">' + (boms.size ? 'No BoM matches these filters.' : 'No BoMs yet. Press "+ New BoM", upload a tech pack and let Claude draft the first one.') + '</td></tr>';
+    return;
+  }
+  $("#lrows").innerHTML = list.map(function(b){
+    var t = b._t || totals(b);
+    return '<tr data-id="' + esc(b.id) + '" tabindex="0"><td><b>' + esc(b.style || "(no style)") + '</b> <span class="sub">v' + esc(b.version || 1) + '</span><small>' + esc(b.description || "") + '</small></td>' +
+      '<td>' + esc(b.buyer) + '</td><td>' + esc(b.brand) + '</td><td>' + esc(b.season) + '</td><td>' + esc(b.color) + '</td>' +
+      '<td class="num">' + t.lines + '</td>' +
+      '<td>' + (t.pending ? '<span class="chip pendchip">' + t.pending + ' pending</span>' : '<span class="chip okchip">Complete</span>') + '</td>' +
+      '<td class="num">' + f2(t.inr) + '</td><td class="num">' + (t.c.hasProd ? f2(t.c.all) : "-") + '</td><td class="num">' + (t.c.hasProd ? f2(t.c.sell) : "-") + '</td>' +
+      '<td><span class="chip ' + (ST_CLS[b.status || "New"] || "na") + '">' + esc(b.status || "New") + '</span></td>' +
+      '<td>' + esc(fmtDate(b.created)) + '</td><td>' + esc(who(b.createdBy)) + '</td></tr>';
+  }).join("");
+}
+function exportList(){
+  var list = window._listShown || [];
+  var head = ["Style","Description","Buyer","Brand","Season","Colour","Category","Version","Status","Lines","Rates pending","Material INR","Total cost INR","Selling price INR","Created","Updated"];
+  var lines = [head.map(csvEsc).join(",")];
+  list.forEach(function(b){ var t = b._t || totals(b);
+    lines.push([b.style,b.description,b.buyer,b.brand,b.season,b.color,b.category,b.version,b.status,t.lines,t.pending,f2(t.inr),t.c.hasProd ? f2(t.c.all) : "",t.c.hasProd ? f2(t.c.sell) : "",localDay(b.created),localDay(b.updated)].map(csvEsc).join(",")); });
+  saveFile("BoM_list_" + localDay(nowIso()) + ".csv", "﻿" + lines.join("\n"), $("#count"));
+}
+function saveFile(name, data, msgEl){
+  if (!downloads){ if (msgEl) msgEl.textContent = "Download is not available in this view."; return; }
+  downloads.save({filename: name, data: data}).then(function(){ if (msgEl) msgEl.textContent = "Saved " + name; }).catch(function(e){
+    if (msgEl) msgEl.textContent = (e && e.code === "declined") ? "Download cancelled." : "Could not save the file.";
+  });
+}
+
+/* ---------- editor ---------- */
+function newBom(){
+  return ensureCost({id: uid(), style: "", description: "", buyer: "", brand: "", season: "", color: "", category: "", baseSize: "", fabricWidth: "",
+    notes: "", status: "New", version: 1, fx: 91, created: nowIso(), updated: nowIso(), createdBy: myId, rows: [], flags: [], files: [], techText: ""});
+}
+function openEditor(b){
+  view = "edit"; cur = b; sess = {pdfs: [], images: []}; undoRows = null; detailOn = false;
+  cur.rows = cur.rows || []; cur.flags = cur.flags || []; cur.files = cur.files || []; ensureCost(cur);
+  var buyers = uniq("buyer"), brands = uniq("brand");
+  $("#app").innerHTML =
+   '<div class="top"><div class="row"><button id="back" type="button">&larr; All BoMs</button><h1 id="ed-title"></h1></div>' +
+   '<div class="row"><span class="msg" id="savemsg"></span>' +
+   '<label class="f" style="flex-direction:row;align-items:center;gap:6px">Status<select id="f-status">' + BOM_STATUSES.concat(cur.status && BOM_STATUSES.indexOf(cur.status) < 0 ? [cur.status] : []).map(function(s){ return '<option>' + s + '</option>'; }).join("") + '</select></label>' +
+   '<button id="dup" type="button">Copy as new version</button><button id="pdf" type="button">Download PDF</button><button id="exp" type="button">Export CSV</button><button id="del" class="danger" type="button">Delete</button></div></div>' +
+   (!canWrite ? '<div class="banner">You have view-only access. Changes here will not be saved.</div>' : '') +
+   (!db ? '<div class="banner">Saving is not available in this view. Export CSV to keep your work.</div>' : '') +
+   '<section class="panel"><h2>Style details</h2><div class="fields">' +
+   fld("style","Style no.","text","e.g. 2130638 ESERA") + fld("description","Description","text","e.g. Girls woven blouse, collar, long sleeve") +
+   fld("buyer","Buyer","text","","buyers") + fld("brand","Brand","text","","brands") +
+   '<label class="f">Season<select data-f="season"><option value="">Choose season</option>' + SEASONS.concat(cur.season && SEASONS.indexOf(cur.season) < 0 ? [cur.season] : []).map(function(s){ return '<option>' + esc(s) + '</option>'; }).join("") + '</select></label>' +
+   fld("color","Colour","text","e.g. R9J Ecru") + fld("category","Category","text","e.g. Kids, Women's") + fld("baseSize","Base size","text","e.g. 3-4y") +
+   fld("fabricWidth","Fabric width (inch)","text","e.g. 58") + fld("bomType","BoM type","text","e.g. Costing") +
+   '</div><datalist id="buyers">' + buyers.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("") + '</datalist>' +
+   '<datalist id="brands">' + brands.map(function(v){ return '<option value="' + esc(v) + '">'; }).join("") + '</datalist></section>' +
+   '<section class="panel"><h2>Import from WFX</h2><div class="sub">Upload the costing PDF downloaded from WFX. Every line, rate, production and indirect cost is copied into the sheet below.</div>' +
+   '<div class="row"><button id="wfx" type="button">Upload WFX costing (PDF)</button><input id="wfxfile" type="file" accept="application/pdf" hidden><button id="wstop" type="button" hidden>Stop</button><span class="msg" id="wmsg" aria-live="polite"></span></div></section>' +
+   '<section class="panel"><h2>Tech pack, pictures and notes</h2>' +
+   '<div class="drop" id="drop" tabindex="0" role="button">Drop the tech pack (PDF) and any pictures here, or press to choose files<input id="file" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,image/gif" hidden></div>' +
+   '<div class="files" id="files"></div>' +
+   '<label class="f">Notes for Claude (rates you know, fabric width, what to change, anything the tech pack does not say)<textarea id="notes" placeholder="e.g. Fabric rate 165 per metre, width 58 inch. Collar embroidery 12 per piece. Use 6 buttons."></textarea></label>' +
+   '<div class="row"><button id="build" class="primary" type="button">Build BoM with Claude</button><button id="stop" type="button" hidden>Stop</button><button id="undo" type="button" hidden>Undo rebuild</button><span class="msg" id="bmsg" aria-live="polite"></span></div></section>' +
+   sheetHtml() +
+   '<section class="panel"><h2>Confirm before costing</h2><ul class="flags" id="flags"></ul></section>';
+  // bind
+  $("#f-status").value = cur.status || "New";
+  $("#notes").value = cur.notes || "";
+  $("#fx").value = cur.fx;
+  document.querySelectorAll("[data-f]").forEach(function(el){ el.value = cur[el.getAttribute("data-f")] || ""; });
+  $("#back").onclick = backToList;
+  $("#drop").onclick = function(){ $("#file").click(); };
+  $("#drop").onkeydown = function(e){ if (e.key === "Enter" || e.key === " "){ e.preventDefault(); $("#file").click(); } };
+  $("#drop").ondragover = function(e){ e.preventDefault(); this.classList.add("over"); };
+  $("#drop").ondragleave = function(){ this.classList.remove("over"); };
+  $("#drop").ondrop = function(e){ e.preventDefault(); this.classList.remove("over"); addFiles(e.dataTransfer.files); };
+  $("#file").onchange = function(){ addFiles(this.files); this.value = ""; };
+  $("#build").onclick = buildWithClaude;
+  $("#wfx").onclick = function(){ $("#wfxfile").click(); };
+  $("#wfxfile").onchange = function(){ var f = this.files && this.files[0]; this.value = ""; if (f) importWfx(f); };
+  $("#wstop").onclick = function(){ if (ctl) ctl.abort(); };
+  $("#stop").onclick = function(){ if (ctl) ctl.abort(); };
+  $("#undo").onclick = function(){ if (undoRows){ cur.rows = undoRows; undoRows = null; $("#undo").hidden = true; renderTable(); markDirty(); } };
+  $("#addF").onclick = function(){ addRow("Fabric"); };
+  $("#addT").onclick = function(){ addRow("Trims"); };
+  $("#addP").onclick = function(){ cur.prod.push({name: "", amount: null}); renderProd(); markDirty(); var el = $('#lt-prod [data-pn="' + (cur.prod.length - 1) + '"]'); if (el) el.focus(); };
+  $("#exp").onclick = exportBom;
+  $("#pdf").onclick = exportPdf;
+  $("#dup").onclick = duplicateBom;
+  $("#del").onclick = deleteBom;
+  $("#tgl").onclick = function(){ detailOn = !detailOn; $("#sheet").classList.toggle("detail", detailOn); this.textContent = detailOn ? "Hide details" : "Show details"; renderTable(); };
+  $("#sheet").addEventListener("click", function(e){
+    var pd = e.target.closest("button[data-pdel]");
+    if (pd){ cur.prod.splice(parseInt(pd.getAttribute("data-pdel"), 10), 1); renderProd(); markDirty(); return; }
+    var b = e.target.closest("button[data-del]"); if (!b) return;
+    cur.rows.splice(parseInt(b.getAttribute("data-del"), 10), 1); renderTable(); markDirty();
+  });
+  $("#flags").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-fl]"); if (!b) return;
+    cur.flags.splice(parseInt(b.getAttribute("data-fl"), 10), 1); renderFlags(); markDirty();
+  });
+  if (!sample) { $("#build").disabled = true; $("#wfx").disabled = true; wfxMsg("Claude is not available in this view, so WFX PDFs cannot be read here."); $("#bmsg").textContent = "Claude is not available in this view. You can still add lines by hand."; }
+  renderFiles(); renderTable(); renderFlags(); fillCost(); syncHead();
+  if (!canWrite) document.querySelectorAll("#app input,#app select,#app textarea,#app button").forEach(function(el){ if (["back","exp","pdf"].indexOf(el.id) < 0) el.disabled = true; });
+  window.scrollTo(0, 0);
+}
+function fld(key, label, type, ph, list){
+  return '<label class="f">' + label + '<input type="' + type + '" data-f="' + key + '" placeholder="' + esc(ph || "") + '"' + (list ? ' list="' + list + '"' : '') + '></label>';
+}
+function onEditorInput(e){
+  var el = e.target;
+  if (el.hasAttribute("data-f")){ cur[el.getAttribute("data-f")] = el.value; syncHead(); markDirty(); return; }
+  if (el.id === "notes"){ cur.notes = el.value; markDirty(); return; }
+  if (el.id === "f-status"){ cur.status = el.value; markDirty(); return; }
+  if (el.id === "fx"){ cur.fx = num(el.value) || 91; recalc(); markDirty(); return; }
+  if (el.hasAttribute("data-p")){ cur.prod[parseInt(el.getAttribute("data-p"), 10)].amount = (el.value === "") ? null : parseFloat(el.value); recalc(); markDirty(); return; }
+  if (el.hasAttribute("data-pn")){ cur.prod[parseInt(el.getAttribute("data-pn"), 10)].name = el.value; markDirty(); return; }
+  if (el.hasAttribute("data-ib")){ cur.indirect[parseInt(el.getAttribute("data-ib"), 10)].budget = (el.value === "") ? 0 : parseFloat(el.value); recalc(); markDirty(); return; }
+  if (el.id === "profit"){ cur.profit = (el.value === "") ? null : parseFloat(el.value); recalc(); markDirty(); return; }
+  if (el.hasAttribute("data-i")){
+    var i = parseInt(el.getAttribute("data-i"), 10), k = el.getAttribute("data-k"), v = el.value;
+    if (k === "cons" || k === "wastage" || k === "rate") cur.rows[i][k] = (v === "") ? null : parseFloat(v);
+    else cur.rows[i][k] = v;
+    if (k === "status"){ var chip = el.closest("tr").querySelector(".chip"); if (chip){ chip.className = "chip s-" + v; } }
+    recalc(); markDirty();
+  }
+}
+function backToList(){
+  clearTimeout(saveTimer);
+  var go = function(){ if (ctl) ctl.abort(); renderListShell(); };
+  if (cur && cur.dirty) saveNow().then(go, go); else go();
+}
+function addRow(group){
+  cur.rows.push({group: group, article: "", body: "", color: "", size: "", uom: group === "Fabric" ? "Mtr" : "PCS", cons: 0, wastage: group === "Fabric" ? 3 : 4, rate: null, status: "est", basis: ""});
+  renderTable(); markDirty();
+  var last = $("#sheet").querySelector('input[data-i="' + (cur.rows.length - 1) + '"][data-k="article"]'); if (last) last.focus();
+}
+function rowHtml(r, i){
+  var sel = UOMS.indexOf(r.uom) >= 0 ? UOMS : UOMS.concat([r.uom]);
+  return '<tr>' +
+   '<td><input class="t art" data-i="' + i + '" data-k="article" value="' + esc(r.article) + '" title="' + esc(r.article) + '" aria-label="Article"></td>' +
+   '<td class="x"><input class="t" style="min-width:60px;width:70px" data-i="' + i + '" data-k="body" value="' + esc(r.body) + '" aria-label="Body type"></td>' +
+   '<td class="x"><input class="t" data-i="' + i + '" data-k="color" value="' + esc(r.color) + '" aria-label="Colour"></td>' +
+   '<td class="x"><input class="t" data-i="' + i + '" data-k="size" value="' + esc(r.size) + '" aria-label="Size"></td>' +
+   '<td><select data-i="' + i + '" data-k="uom" aria-label="Unit">' + sel.map(function(u){ return '<option' + (u === r.uom ? ' selected' : '') + '>' + esc(u) + '</option>'; }).join("") + '</select></td>' +
+   '<td class="n"><input class="cell" type="number" step="any" data-i="' + i + '" data-k="cons" aria-label="Quantity" value="' + (r.cons === null || r.cons === undefined ? "" : +(+r.cons).toFixed(6)) + '"></td>' +
+   '<td class="n"><input class="cell" type="number" step="any" data-i="' + i + '" data-k="wastage" aria-label="Wastage percent" value="' + (r.wastage === null || r.wastage === undefined ? "" : r.wastage) + '"></td>' +
+   '<td class="num x" id="lq' + i + '"></td>' +
+   '<td class="n"><input class="cell" id="lr' + i + '" type="number" step="any" placeholder="needed" aria-label="Rate" data-i="' + i + '" data-k="rate" value="' + (hasRate(r) ? r.rate : "") + '"></td>' +
+   '<td class="num" id="lv' + i + '"></td>' +
+   '<td class="x"><select data-i="' + i + '" data-k="status" aria-label="Status">' + ["tp","est","carry","wfx"].map(function(s){ return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + STATUS_LBL[s] + '</option>'; }).join("") + '</select><br><span class="chip s-' + esc(r.status) + '" style="margin-top:3px">' + esc(STATUS_LBL[r.status] || "") + '</span></td>' +
+   '<td class="x"><input class="t bas" data-i="' + i + '" data-k="basis" value="' + esc(r.basis) + '" aria-label="Basis or remarks"></td>' +
+   '<td><button type="button" class="link danger" data-del="' + i + '" aria-label="Remove line">Remove</button></td></tr>';
+}
+function lineTableHtml(g){
+  var body = "";
+  cur.rows.forEach(function(r, i){ if (r.group === g) body += rowHtml(r, i); });
+  if (!body) body = '<tr><td colspan="' + (detailOn ? 13 : 7) + '" class="empty">No ' + g.toLowerCase() + ' lines yet.</td></tr>';
+  return '<table class="bom"><thead><tr><th>Article</th><th class="x">Body</th><th class="x">Colour</th><th class="x">Size</th><th>UoM</th><th class="n">Quantity</th><th class="n">Wastage %</th><th class="x n">Qty incl. wastage</th><th class="n">Rate</th><th class="n">Value</th><th class="x">Status</th><th class="x">Basis / Remarks</th><th></th></tr></thead><tbody>' + body +
+    '<tr class="tot"><td class="lab" colspan="' + (detailOn ? 9 : 5) + '">Total</td><td class="num" id="st-' + g + '"></td><td colspan="' + (detailOn ? 3 : 1) + '"></td></tr></tbody></table>';
+}
+function renderTable(){
+  ["Fabric","Trims"].forEach(function(g){ $("#lt-" + g).innerHTML = lineTableHtml(g); });
+  if (!canWrite) document.querySelectorAll("#lt-Fabric input,#lt-Fabric select,#lt-Fabric button,#lt-Trims input,#lt-Trims select,#lt-Trims button").forEach(function(el){ el.disabled = true; });
+  recalc();
+}
+function fillCost(){
+  renderProd();
+  document.querySelectorAll("[data-ib]").forEach(function(el){ el.value = cur.indirect[parseInt(el.getAttribute("data-ib"), 10)].budget; });
+  $("#profit").value = (cur.profit === null || cur.profit === undefined) ? "" : cur.profit;
+}
+function syncHead(){
+  var st = cur.style || "New BoM";
+  $("#ed-title").textContent = st; $("#sh-title").textContent = "Costing Report — " + st;
+  $("#sh-style").textContent = st; $("#sh-type").textContent = cur.bomType || "";
+}
+function sheetHtml(){
+
+  var ind = cur.indirect.map(function(x, i){
+    return '<tr><td>' + esc(x.name) + '</td><td>' + (x.kind === "pct" ? "% on Total Material &amp; Production Cost" : "Amt") + '</td><td class="n"><input class="cell" type="number" step="any" min="0" data-ib="' + i + '" aria-label="' + esc(x.name) + ' budget"></td><td class="num" id="ic' + i + '"></td></tr>';
+  }).join("");
+  return '<section class="sheet" id="sheet">' +
+    '<div class="sh-co"><b>GUDI EXPORTS PRIVATE LIMITED</b><span>Faridabad</span><span>India</span><span>GSTIN: 06AAECG7014K1ZN</span></div>' +
+    '<h2 class="sh-title" id="sh-title"></h2>' +
+    '<div class="sh-box"><b id="sh-style"></b><span>BoM Quantity: <b>1.00</b> Units | BoM Type: <b id="sh-type"></b></span></div>' +
+    '<div class="row sh-tools"><button id="addF" type="button">+ Fabric line</button><button id="addT" type="button">+ Trim line</button><button id="tgl" type="button">Show details</button><span class="msg" id="pend" aria-live="polite"></span></div>' +
+    '<div class="sh-sec">FABRIC</div><div class="tablebox" id="lt-Fabric"></div>' +
+    '<div class="sh-sec">TRIMS</div><div class="tablebox" id="lt-Trims"></div>' +
+    '<div class="sh-sec">PRODUCTION COST</div><div class="tablebox" id="lt-prod"></div><div class="row"><button id="addP" type="button">+ Operation</button></div>' +
+    '<div class="sh-sec">INDIRECT COST</div><div class="tablebox"><table class="rep"><thead><tr><th>Name</th><th>Amt/%</th><th class="n">Budget</th><th class="n">Amount</th></tr></thead><tbody>' + ind +
+      '<tr class="tot"><td class="lab" colspan="3">Total</td><td class="num" id="ic-tot"></td></tr></tbody></table></div>' +
+    '<div class="tablebox sum"><table class="rep"><tbody>' +
+      '<tr><td>Total Material Cost (Fabric + Trims)</td><td class="num" id="sm-mat"></td></tr>' +
+      '<tr><td>Total Material + Production Cost</td><td class="num" id="sm-mp"></td></tr>' +
+      '<tr class="bar"><td>Total Material + Production + Indirect Cost</td><td class="num" id="sm-all"></td></tr>' +
+      '<tr><td>Profit (%)</td><td class="n"><input class="cell" id="profit" type="number" step="any" min="0" aria-label="Profit percent" placeholder="needed"> %</td></tr>' +
+      '<tr><td>Profit Amount</td><td class="num" id="sm-pa"></td></tr>' +
+      '<tr class="bar"><td>Selling Price</td><td class="num" id="sm-sell"></td></tr>' +
+      '<tr><td>Selling Price in USD, at INR per USD <input id="fx" class="cell" type="number" step="0.01" aria-label="INR per USD"></td><td class="num" id="sm-usd"></td></tr>' +
+    '</tbody></table></div>' +
+    '<div class="legend">Value = Quantity x (1 + Wastage % / 100) x Rate. Indirect cost percentages apply to Total Material + Production Cost. A yellow rate cell has no rate yet and counts as zero. Show details adds body type, colour, size, status and remarks. All amounts are in INR per piece.</div>' +
+  '</section>';
+}
+function prodHtml(){
+  var rows = cur.prod.map(function(p, i){
+    return '<tr><td><input class="t" data-pn="' + i + '" value="' + esc(p.name) + '" aria-label="Operation"></td>' +
+      '<td class="n"><input class="cell" type="number" step="any" min="0" data-p="' + i + '" aria-label="' + esc(p.name) + ' cost" placeholder="needed" value="' + (p.amount === null || p.amount === undefined ? "" : p.amount) + '"></td>' +
+      '<td><button type="button" class="link danger" data-pdel="' + i + '" aria-label="Remove operation">Remove</button></td></tr>';
+  }).join("");
+  if (!rows) rows = '<tr><td colspan="3" class="empty">No operations yet.</td></tr>';
+  return '<table class="rep"><thead><tr><th>Operation</th><th class="n">Amount</th><th></th></tr></thead><tbody>' + rows +
+    '<tr class="tot"><td class="lab">Total</td><td class="num" id="pc-tot"></td><td></td></tr></tbody></table>';
+}
+function renderProd(){
+  var box = $("#lt-prod"); if (!box) return;
+  box.innerHTML = prodHtml();
+  if (!canWrite) box.querySelectorAll("input,button").forEach(function(el){ el.disabled = true; });
+  recalc();
+}
+function recalc(){
+  if (!cur || !$("#sheet")) return;
+  var c = costOf(cur);
+  cur.rows.forEach(function(r, i){
+    var q = $("#lq" + i); if (!q) return;
+    q.textContent = f4(inc(r)); $("#lv" + i).textContent = f4(inr(r));
+    $("#lr" + i).classList.toggle("need", !hasRate(r));
+  });
+  $("#st-Fabric").textContent = f2(c.fab); $("#st-Trims").textContent = f2(c.trm);
+  if ($("#pc-tot")) $("#pc-tot").textContent = f2(c.pt);
+  c.ind.forEach(function(a, i){ var el = $("#ic" + i); if (el) el.textContent = f2(a); });
+  $("#ic-tot").textContent = f2(c.it);
+  $("#sm-mat").textContent = f2(c.mat); $("#sm-mp").textContent = f2(c.base); $("#sm-all").textContent = f2(c.all);
+  $("#sm-pa").textContent = f2(c.pa); $("#sm-sell").textContent = f2(c.sell); $("#sm-usd").textContent = f2(c.usd);
+  var notes = [];
+  if (c.pending) notes.push(c.pending + " lines have no rate yet, material cost is understated.");
+  if (!c.hasProd) notes.push("Production cost is not entered yet.");
+  $("#pend").textContent = notes.join(" ");
+}
+function renderFlags(){
+  $("#flags").innerHTML = cur.flags.length ? cur.flags.map(function(f, i){
+    return '<li><div><b>' + esc(f.item) + '</b><span>' + esc(f.note) + '</span></div>' + (canWrite ? '<button type="button" class="link" data-fl="' + i + '">Done</button>' : '') + '</li>';
+  }).join("") : '<li><span>Nothing open. Claude lists conflicts and missing information here after it builds the BoM.</span></li>';
+}
+function renderFiles(){
+  var h = cur.files.map(function(f, i){
+    var isImg = /^image\//.test(f.type || "");
+    return '<div class="file">' + (isImg && f.url ? '<img src="' + esc(f.url) + '" alt="">' : '') +
+      '<span>' + (f.url && !isImg ? '<a href="' + esc(f.url) + '" target="_blank" rel="noopener">' + esc(f.name) + '</a>' : esc(f.name)) + ' <span class="sub">' + Math.round((f.size || 0) / 1024) + ' KB, stored</span></span>' +
+      (canWrite ? '<button type="button" class="link danger" data-rmf="' + i + '">Remove</button>' : '') + '</div>';
+  }).join("");
+  sess.pdfs.forEach(function(p){ h += '<div class="file"><span>' + esc(p.name) + ' <span class="sub">' + p.pageCount + ' pages read, ' + p.pics.length + ' page pictures ready</span></span></div>'; });
+  sess.images.forEach(function(im){ h += '<div class="file"><span>' + esc(im.name) + ' <span class="sub">picture ready</span></span></div>'; });
+  if (!h && cur.techText) h = '<div class="sub">Tech pack text from an earlier upload is saved with this BoM. Upload the pictures again if you want Claude to look at them.</div>';
+  $("#files").innerHTML = h;
+  $("#files").onclick = function(e){
+    var b = e.target.closest("button[data-rmf]"); if (!b) return;
+    var i = parseInt(b.getAttribute("data-rmf"), 10), f = cur.files[i]; cur.files.splice(i, 1); renderFiles(); markDirty();
+    if (assets && f && f.id) assets.delete(f.id).catch(function(){});
+  };
+}
+
+/* ---------- saving ---------- */
+function setSaveMsg(t, err){ var m = $("#savemsg"); if (m){ m.textContent = t; m.className = "msg" + (err ? " err" : ""); } }
+function markDirty(){
+  if (!cur || !canWrite) return;
+  cur.dirty = true;
+  if (!db){ setSaveMsg("Not stored (saving unavailable)"); return; }
+  setSaveMsg("Unsaved changes");
+  clearTimeout(saveTimer); saveTimer = setTimeout(function(){ saveNow(); }, 1500);
+}
+function serialize(b){
+  var o = {};
+  ["style","description","buyer","brand","season","color","category","baseSize","fabricWidth","notes","status","version","fx","created","createdBy"].forEach(function(k){ o[k] = b[k] === undefined ? null : b[k]; });
+  o.updated = nowIso();
+  ensureCost(b);
+  o.bomType = b.bomType || "";
+  o.prod = prodList(b).map(function(p){ return {name: String(p.name || ""), amount: (p.amount === null || p.amount === undefined || p.amount === "") ? null : num(p.amount)}; });
+  o.indirect = b.indirect.map(function(x){ return {name: x.name, kind: x.kind, budget: num(x.budget)}; });
+  o.profit = (b.profit === null || b.profit === undefined || b.profit === "") ? null : num(b.profit);
+  o.rows = b.rows.map(function(r){ return {group: r.group, article: r.article || "", body: r.body || "", color: r.color || "", size: r.size || "", uom: r.uom || "", cons: num(r.cons), wastage: num(r.wastage), rate: hasRate(r) ? num(r.rate) : null, status: r.status || "est", basis: r.basis || ""}; });
+  o.flags = b.flags.map(function(f){ return {item: f.item || "", note: f.note || ""}; });
+  o.files = b.files.map(function(f){ return {id: f.id, url: f.url, name: f.name, type: f.type, size: f.size}; });
+  o.techText = String(b.techText || "").slice(0, 40000);
+  return o;
+}
+function saveNow(){
+  clearTimeout(saveTimer);
+  if (!db || !cur || !canWrite) return Promise.resolve();
+  var b = cur, body = serialize(b); b.dirty = false;
+  setSaveMsg("Saving...");
+  saveChain = saveChain.then(function(){ return db.doc("boms/" + b.id).set(body); }).then(function(){
+    if (cur === b) setSaveMsg("Saved " + new Date().toLocaleTimeString("en-GB", {hour: "2-digit", minute: "2-digit"}));
+  }).catch(function(e){
+    b.dirty = true;
+    setSaveMsg((e && e.code === "quota_exceeded") ? "Storage is full, delete old BoMs" : "Could not save, will retry on next change", true);
+  });
+  return saveChain;
+}
+function duplicateBom(){
+  var c = JSON.parse(JSON.stringify(cur)); c.id = uid(); c.version = (c.version || 1) + 1; c.status = "New"; c.created = nowIso(); c.createdBy = myId; c.dirty = false;
+  var go = function(){ openEditor(c); markDirty(); };
+  if (cur.dirty) saveNow().then(go, go); else go();
+}
+var delArmed = false;
+function deleteBom(){
+  var btn = $("#del");
+  if (!delArmed){ delArmed = true; btn.textContent = "Press again to delete"; setTimeout(function(){ delArmed = false; if ($("#del")) $("#del").textContent = "Delete"; }, 4000); return; }
+  delArmed = false; clearTimeout(saveTimer);
+  var id = cur.id; cur.dirty = false;
+  var done = function(){ renderListShell(); };
+  if (db) saveChain.then(function(){ return db.doc("boms/" + id).delete(); }).then(done, done); else done();
+}
+function exportBom(){
+  var c = costOf(cur), fx = num(cur.fx) || 91, lines = [];
+  lines.push(["Costing Report", cur.style, "BoM Quantity", "1.00 Units", "BoM Type", cur.bomType].map(csvEsc).join(","));
+  bomInfo(cur, c).forEach(function(x){ lines.push(x.map(csvEsc).join(",")); });
+  ["Fabric","Trims"].forEach(function(g){
+    lines.push(""); lines.push(g.toUpperCase());
+    lines.push(["Article","UoM","Quantity","Wastage %","Qty incl. wastage","Rate","Value","Status","Basis"].map(csvEsc).join(","));
+    cur.rows.forEach(function(r){ if (r.group !== g) return;
+      lines.push([r.article, r.uom, f4(num(r.cons)), r.wastage, f4(inc(r)), hasRate(r) ? r.rate : "", f4(inr(r)), STATUS_LBL[r.status] || "", r.basis].map(csvEsc).join(",")); });
+    lines.push(["Total","","","","","",f2(g === "Fabric" ? c.fab : c.trm)].map(csvEsc).join(","));
+  });
+  lines.push(""); lines.push("PRODUCTION COST"); lines.push("Operation,Amount");
+  prodList(cur).forEach(function(p){ lines.push([p.name, f2(num(p.amount))].map(csvEsc).join(",")); });
+  lines.push(["Total", f2(c.pt)].map(csvEsc).join(","));
+  lines.push(""); lines.push("INDIRECT COST"); lines.push("Name,Amt/%,Budget,Amount");
+  cur.indirect.forEach(function(x, i){ lines.push([x.name, x.kind === "pct" ? "% on Total Material & Production Cost" : "Amt", x.budget, f2(c.ind[i])].map(csvEsc).join(",")); });
+  lines.push(["Total","","",f2(c.it)].map(csvEsc).join(","));
+  lines.push("");
+  [["Total Material Cost (Fabric + Trims)", c.mat], ["Total Material + Production Cost", c.base], ["Total Material + Production + Indirect Cost", c.all],
+   ["Profit (%)", num(cur.profit)], ["Profit Amount", c.pa], ["Selling Price (INR)", c.sell], ["Selling Price (USD at " + fx + " INR per USD)", c.usd]
+  ].forEach(function(x){ lines.push([x[0], f2(x[1])].map(csvEsc).join(",")); });
+  saveFile(safeName(cur.style) + "_BoM_v" + (cur.version || 1) + ".csv", "﻿" + lines.join("\n"), $("#savemsg"));
+}
+
+/* ---------- PDF (same layout as the Costing Report) ---------- */
+var JSPDF_SRC = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+var AUTOTABLE_SRC = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
+function loadScript(src){
+  return new Promise(function(res, rej){
+    var el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = function(){ rej(new Error("load " + src)); };
+    document.head.appendChild(el);
+  });
+}
+async function loadPdfLib(){
+  if (!(window.jspdf && window.jspdf.jsPDF)) await loadScript(JSPDF_SRC);
+  var probe = new window.jspdf.jsPDF();
+  if (!probe.autoTable && !window.jspdf.autoTable) await loadScript(AUTOTABLE_SRC);
+}
+function makePdf(b){
+  var doc = new window.jspdf.jsPDF({unit: "mm", format: "a4"});
+  var c = costOf(b), fx = num(b.fx) || 91, W = 210, M = 14, USABLE = W - 2 * M;
+  var PLUM = [113, 75, 103], SOFT = [241, 232, 239], INK = [30, 30, 30], LINE = [200, 200, 200];
+  var table = function(o){ if (doc.autoTable) doc.autoTable(o); else window.jspdf.autoTable(doc, o); };
+  var base = {theme: "grid", margin: {left: M, right: M}, styles: {font: "helvetica", fontSize: 7.5, cellPadding: 1.5, lineColor: LINE, lineWidth: 0.1, textColor: INK, overflow: "linebreak"},
+    headStyles: {fillColor: PLUM, textColor: 255, halign: "center", fontStyle: "normal"}, footStyles: {fillColor: SOFT, textColor: INK, fontStyle: "bold"}, showFoot: "lastPage"};
+  var y = 16;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor.apply(doc, INK);
+  doc.text("GUDI EXPORTS PRIVATE LIMITED", M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  ["Faridabad", "India", "GSTIN: 06AAECG7014K1ZN"].forEach(function(t, i){ doc.text(t, M, y + 5 * (i + 1)); });
+  y = 46;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor.apply(doc, PLUM);
+  doc.text("Costing Report - " + (b.style || "BoM"), M, y);
+  doc.setDrawColor.apply(doc, LINE); doc.setLineWidth(0.2);
+  doc.setFontSize(10); doc.text(b.style || "", M + 4, y + 10);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, INK);
+  doc.text("BoM Quantity: 1.00 Units  |  BoM Type: " + (b.bomType || ""), M + 4, y + 15.5);
+  var info = bomInfo(b, c);
+  var dsc = doc.splitTextToSize("Description: " + (info[0][1] || "-"), USABLE - 8);
+  doc.text(info.slice(1).map(function(x){ return x[0] + ": " + (x[1] || "-"); }).join("  |  "), M + 4, y + 20.5);
+  doc.text(dsc, M + 4, y + 25);
+  var bh = 20 + dsc.length * 3.6 + 1;
+  doc.rect(M, y + 4, USABLE, bh);
+  y += bh + 9;
+  if (c.pending){
+    doc.setFontSize(7.5); doc.setTextColor(150, 60, 40);
+    doc.text("Draft: " + c.pending + " line" + (c.pending > 1 ? "s have" : " has") + " no rate yet, so material cost is understated.", M, y);
+    doc.setTextColor.apply(doc, INK); y += 5;
+  }
+  var section = function(title, need){
+    if (y + (need || 24) > 282){ doc.addPage(); y = 16; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor.apply(doc, INK);
+    doc.text(title, M, y); y += 2;
+  };
+  var after = function(){ y = doc.lastAutoTable.finalY + 6; };
+
+  [["Fabric", "FABRIC", c.fab], ["Trims", "TRIMS", c.trm]].forEach(function(g){
+    section(g[1]);
+    var rows = [];
+    b.rows.forEach(function(r){
+      if (r.group !== g[0]) return;
+      var has = hasRate(r);
+      rows.push([r.article || "", r.uom || "", f4(num(r.cons)), String(num(r.wastage).toFixed(1)), has ? String(r.rate) : "", has ? f4(inr(r)) : ""]);
+    });
+    table(Object.assign({}, base, {startY: y,
+      head: [["Article", "UoM", "Quantity", "Wastage %", "Rate", "Value"]], body: rows,
+      foot: [[{content: "Total", colSpan: 5, styles: {halign: "right"}}, {content: f2(g[2]), styles: {halign: "right"}}]],
+      columnStyles: {0: {cellWidth: USABLE - 96}, 1: {cellWidth: 16, halign: "center"}, 2: {cellWidth: 22, halign: "right"}, 3: {cellWidth: 20, halign: "right"}, 4: {cellWidth: 18, halign: "right"}, 5: {cellWidth: 20, halign: "right"}}}));
+    after();
+  });
+
+  section("PRODUCTION COST", 22 + 6 * prodList(b).length);
+  table(Object.assign({}, base, {startY: y, head: [["Operation", "Amount"]],
+    body: prodList(b).map(function(p){ return [p.name, f2(num(p.amount))]; }),
+    foot: [[{content: "Total", styles: {halign: "right"}}, {content: f2(c.pt), styles: {halign: "right"}}]],
+    columnStyles: {0: {cellWidth: USABLE - 40}, 1: {cellWidth: 40, halign: "right"}}}));
+  after();
+
+  section("INDIRECT COST", 52);
+  table(Object.assign({}, base, {startY: y, head: [["Name", "Amt/%", "Budget", "Amount"]],
+    body: b.indirect.map(function(x, i){ return [x.name, x.kind === "pct" ? "% on Total Material & Production Cost" : "Amt", f2(num(x.budget)), f2(c.ind[i])]; }),
+    foot: [[{content: "Total", colSpan: 3, styles: {halign: "right"}}, {content: f2(c.it), styles: {halign: "right"}}]],
+    columnStyles: {0: {cellWidth: 48}, 1: {cellWidth: USABLE - 48 - 44}, 2: {cellWidth: 22, halign: "right"}, 3: {cellWidth: 22, halign: "right"}}}));
+  after();
+
+  if (y > 215){ doc.addPage(); y = 16; }
+  var BARS = {2: 1, 5: 1};
+  var hasProfit = !(b.profit === null || b.profit === undefined || b.profit === "");
+  table({theme: "grid", startY: y, margin: {left: W - M - 110, right: M},
+    styles: {font: "helvetica", fontSize: 8, cellPadding: 2, lineColor: LINE, lineWidth: 0.1, textColor: INK},
+    body: [
+      ["Total Material Cost (Fabric + Trims)", f2(c.mat)],
+      ["Total Material + Production Cost", f2(c.base)],
+      ["Total Material + Production + Indirect Cost", f2(c.all)],
+      ["Profit (%)", hasProfit ? num(b.profit).toFixed(2) + " %" : "%"],
+      ["Profit Amount", f2(c.pa)],
+      ["Selling Price", f2(c.sell)],
+      ["Selling Price in USD (at " + fx + " INR per USD)", f2(c.usd)]],
+    columnStyles: {0: {cellWidth: 80}, 1: {cellWidth: 30, halign: "right"}},
+    didParseCell: function(d){
+      if (d.section === "body" && BARS[d.row.index]){ d.cell.styles.fillColor = PLUM; d.cell.styles.textColor = 255; d.cell.styles.fontStyle = "bold"; }
+    }});
+
+  var n = doc.getNumberOfPages();
+  for (var i = 1; i <= n; i++){
+    doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(130, 130, 130);
+    doc.text("Page " + i + " / " + n, W - M, 290, {align: "right"});
+  }
+  return doc;
+}
+async function exportPdf(){
+  var msg = $("#savemsg");
+  if (!downloads){ msg.className = "msg"; msg.textContent = "Download is not available in this view."; return; }
+  var btn = $("#pdf"); btn.disabled = true; msg.className = "msg"; msg.textContent = "Preparing PDF...";
+  try{
+    await loadPdfLib();
+    var doc = makePdf(cur);
+    var name = safeName(cur.style) + "_Costing_Report_v" + (cur.version || 1) + ".pdf";
+    await downloads.save({filename: name, data: doc.output("arraybuffer")});
+    msg.textContent = "Saved " + name;
+  }catch(e){
+    msg.className = "msg err";
+    msg.textContent = (e && e.code === "declined") ? "Download cancelled." : "Could not make the PDF. Check your connection and try again.";
+  }finally{ btn.disabled = false; }
+}
+
+/* ---------- uploads ---------- */
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve();
+  return new Promise(function(res, rej){
+    var s = document.createElement("script"); s.src = PDFJS; s.onload = res; s.onerror = function(){ rej(new Error("pdfjs")); };
+    document.head.appendChild(s);
+  }).then(function(){ window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; });
+}
+async function readPdf(file){
+  await loadPdfJs();
+  var pdf = await window.pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+  var text = "", pics = [];
+  for (var p = 1; p <= pdf.numPages; p++){
+    var page = await pdf.getPage(p), tc = await page.getTextContent(), lines = [], lastY = null, line = "";
+    tc.items.forEach(function(it){
+      var y = it.transform ? it.transform[5] : 0;
+      if (lastY !== null && Math.abs(y - lastY) > 2){ lines.push(line.trim()); line = ""; }
+      line += it.str + " "; lastY = y;
+    });
+    lines.push(line.trim());
+    var pt = lines.filter(Boolean).join("\n");
+    text += "\n--- " + file.name + " page " + p + " ---\n" + pt;
+    if (pics.length < 8 && (p === 1 || /BOM Images|Style Images|Option Images|Style and Option|Artwork|ARTWORK/i.test(pt))){
+      var vp = page.getViewport({scale: 1}), sc = Math.min(2, 1400 / vp.width), v2 = page.getViewport({scale: sc});
+      var cv = document.createElement("canvas"); cv.width = Math.round(v2.width); cv.height = Math.round(v2.height);
+      await page.render({canvasContext: cv.getContext("2d"), viewport: v2}).promise;
+      var blob = await new Promise(function(r){ cv.toBlob(r, "image/jpeg", 0.82); });
+      if (blob) pics.push(blob);
+    }
+  }
+  return {name: file.name, text: text, pics: pics, pageCount: pdf.numPages};
+}
+async function addFiles(list){
+  var files = Array.prototype.slice.call(list || []);
+  if (!files.length) return;
+  var msg = $("#bmsg");
+  for (var i = 0; i < files.length; i++){
+    var f = files[i];
+    var isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name), isImg = /^image\/(jpeg|png|webp|gif)$/.test(f.type);
+    if (!isPdf && !isImg){ msg.textContent = f.name + " skipped. Use a PDF or a JPEG, PNG, WebP or GIF picture."; continue; }
+    msg.className = "msg"; msg.textContent = "Reading " + f.name + "...";
+    if (isPdf){
+      try{ var r = await readPdf(f); sess.pdfs.push(r); cur.techText = ((cur.techText || "") + "\n" + r.text).slice(-60000); msg.textContent = "Read " + f.name + " (" + r.pageCount + " pages)."; }
+      catch(e){ msg.className = "msg err"; msg.textContent = "Could not read " + f.name + ". Export its pages as pictures, or paste the BoM text into the notes."; }
+    } else {
+      sess.images.push({name: f.name, blob: f});
+    }
+    if (assets && canWrite){
+      try{ var a = await assets.upload(f); cur.files.push({id: a.id, url: a.url, name: f.name, type: f.type || (isPdf ? "application/pdf" : ""), size: f.size}); }
+      catch(e){ /* storing the original is optional */ }
+    }
+  }
+  renderFiles(); markDirty();
+  if (msg.className === "msg") msg.textContent = "Ready. Press Build BoM with Claude.";
+}
+
+/* ---------- Claude ---------- */
+function copyFor(code){
+  return ({not_granted: "Claude was not allowed on this page. Allow it and try again.", sampling_disabled: "Claude is not available for this account.", rate_limited: "Too many requests or usage limit reached. Wait a little and try again.",
+    session_expired: "Sign in again, then try again.", invalid_json: "Claude's reply could not be read as a BoM. Try again, or add notes that narrow the job.", refused: "Claude declined this input.",
+    prompt_too_large: "The tech pack text is too long. Upload fewer pages.", image_rejected: "A picture was rejected. Try a smaller JPEG or PNG.", empty_completion: "Claude returned nothing. Try again."})[code] || "Something went wrong. Try again.";
+}
+function buildPrompt(){
+  var text = sess.pdfs.map(function(p){ return p.text; }).join("\n") || cur.techText || "";
+  var meta = ["style","description","buyer","brand","season","color","category","baseSize","fabricWidth"].map(function(k){ return k + ": " + (cur[k] || "(blank)"); }).join("\n");
+  return [
+"You are a costing specialist at an Indian garment export factory. Build a Bill of Material (BoM) per piece for the style described below, from the tech pack text, the pictures and the notes.",
+"",
+"Reply with ONE JSON object and nothing else, in this shape:",
+'{"meta":{"style":"","description":"","buyer":"","brand":"","season":"Summer|Autumn|Winter|Rainy / Monsoon (exactly one of these, or empty)","color":"","category":"","baseSize":"","fabricWidth":""},',
+' "rows":[{"group":"Fabric or Trims","article":"name with tech pack ID in brackets","body":"","color":"","size":"","uom":"Mtr|PCS|Gross|Kgs|Yds|Set|Cone","cons":0.65,"wastage":3,"rate":null,"status":"tp|est|carry","basis":"one short plain sentence"}],',
+' "flags":[{"item":"short title","note":"what is unclear, conflicting or missing"}]}',
+"",
+"Rules:",
+"1. Consumptions are per piece at the base size (the column marked as base size in the measurement sheet).",
+"2. Include every material and trim in the tech pack BoM and keep its ID in the article name. Also add anything shown in the sketch, call-outs or artwork but missing from the BoM (piping, embroidery, extra labels). Do not invent items that are not shown.",
+"3. Fabric goes in group Fabric. Woven fabric in Mtr, knit fabric in Kgs. Use the fabric width from the notes or the tech pack. If none is given, assume 58 inch for woven and 60 inch for knit, write the assumption in size, and add a flag. Estimate area from the measurements (body, sleeves, collar layers, binding), assume about 80% marker efficiency, and round up slightly.",
+"4. Buttons in Gross (pieces divided by 144). Take the button count from the measurement sheet for the base size. If the BoM or sketch shows a different count, use the higher one and add a flag.",
+"5. Threads as separate lines in Mtr: core spun for lockstitch needle, spun-30 for lockstitch bobbin, spun-21 for overlock, spun-27 for buttonhole and button attach (body type Kaj). Estimate metres from seam length times the usual thread ratio. Status est.",
+"6. Rates are in INR. Copy a rate from the reference list below only when the item is the same kind, and then set status carry. For anything else set rate null. Never invent a rate for fabric, interlining, buttons, embroidery or any new item. If the notes give a rate, use it with status tp and say so in basis.",
+"7. Wastage percent: use the reference list. Fabric 3, interlining 5, embroidery job work 0, other trims 4 unless the reference says otherwise.",
+"8. If the tech pack has no packing items, add packing lines from the reference list with status carry and say in basis that bag size and pieces per carton must be re-set. If an inner wash label exists, do not add a separate care label.",
+"9. status: tp = quantity and article straight from the tech pack, est = your estimate, carry = copied from the reference.",
+"10. flags: at most 12. Cover conflicts between pages, missing widths or specs, unclear articles, anything that changes the cost. Plain words.",
+"11. In meta, repeat any value I already gave and fill in the blank ones from the tech pack.",
+"",
+"Reference list (previous style, Mutosen). Format: article | unit | wastage | rate:",
+REF.join("\n"),
+"",
+"What I already know about this style:",
+meta,
+"",
+"Notes from the merchandiser (treat as authoritative):",
+(cur.notes || "(none)"),
+"",
+"Tech pack text (extracted from the PDF, tables may be flattened):",
+(text ? text.slice(0, 120000) : "(no text uploaded)")
+  ].join("\n");
+}
+/* ---------- import a WFX costing PDF ---------- */
+function wfxPrompt(pg, pageNo, pages, hasPic){
+  return [
+"You are copying one page of a costing sheet exported from WFX (a garment PLM / ERP system) into a Bill of Material form. This is data entry, not estimation: copy every figure exactly as printed.",
+"This is page " + pageNo + " of " + pages + ".",
+"",
+"Reply with ONE JSON object and nothing else, in this shape:",
+'{"meta":{"style":"","description":"","buyer":"","brand":"","season":"","color":"","category":"","baseSize":"","fabricWidth":"","bomType":""},',
+' "rows":[{"group":"Fabric or Trims","section":"heading the line sits under","article":"","body":"","color":"","size":"","uom":"","cons":0,"wastage":0,"rate":0,"basis":""}],',
+' "prod":[{"name":"","amount":0}],',
+' "indirect":[{"name":"","kind":"pct|amt","budget":0}],',
+' "profit":null, "fx":null,',
+' "printed":{"fabric":null,"trims":null,"material":null,"production":null,"indirect":null,"total":null,"sell":null},',
+' "flags":[{"item":"","note":""}]}',
+"",
+"Rules:",
+"1. rows: list EVERY material line printed on this page, one row per printed line, in the same order. Never merge, total, group or skip lines, even when two lines have the same article, colour, size or rate. A line whose text wraps onto two text lines is still one row. Do not include total or subtotal lines as rows.",
+"2. group: Fabric for fabric lines, Trims for everything else (trims, labels, threads, tags, packing, embellishment). section: the heading printed above the line on the sheet (for example FABRIC, TRIMS, PACKING, THREAD), empty if none.",
+"3. article: the article or item name exactly as printed, with any code. Put body type, colour and size in their own fields when the sheet has them.",
+"4. cons = quantity per piece BEFORE wastage. If the sheet prints only a quantity that already includes wastage, divide it by (1 + wastage / 100) and say so in basis. wastage is the percent number (3 for 3%). rate exactly as printed, null if blank. uom as printed. Leave basis empty unless you had to adjust something.",
+"5. prod: every line of the Production Costs section, in the same order, with the name as printed (for example Stitching, Overhead, Cutting, Kaj, Finishing, Packing, Other Processes Cost). Include lines whose amount is 0. Do not merge, rename or skip them, and never put them in indirect. In WFX a production line reads like 'Stitching (Stitching) Amt 0.0000 55.0000 INR': the LAST number before the currency is the amount (55). Use the name before the bracket. The Production Costs heading line itself (for example 'Production Costs Amt 98.2000') is the section total: put it in printed.production, not in prod.",
+"6. indirect: every line of the indirect cost section on this page (not the Production Costs section), in order. kind pct for a percentage, amt for a fixed amount; budget is the percent or amount as printed (not the computed amount).",
+"7. profit: the profit percent. fx: INR per USD. printed: totals exactly as printed (fabric total, trims total, total material, production total, indirect total, material + production + indirect, selling price in INR).",
+"8. Fill meta, prod, indirect, profit, fx and printed ONLY with what is on this page; otherwise leave them empty, null or []. Season only Summer, Autumn, Winter or Rainy / Monsoon when clear.",
+"9. flags: only for things unreadable or adjusted on this page. Plain words.",
+"10. Never invent a line, rate or amount that is not on the sheet.",
+"",
+"Page text (extracted from the PDF" + (hasPic ? ", page picture attached" : "") + "; table cells may be flattened onto one line, separated by spaces):",
+(pg.text || "(no text layer, use the picture)")
+  ].join("\n");
+}
+async function wfxRead(file){
+  await loadPdfJs();
+  var pdf = await window.pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise, pages = [];
+  for (var p = 1; p <= pdf.numPages; p++){
+    var page = await pdf.getPage(p), tc = await page.getTextContent(), rows = [];
+    tc.items.forEach(function(it){
+      if (!it.str || !it.str.trim()) return;
+      var y = it.transform ? it.transform[5] : 0, x = it.transform ? it.transform[4] : 0;
+      var r = rows.filter(function(q){ return Math.abs(q.y - y) <= 2; })[0];
+      if (!r){ r = {y: y, items: []}; rows.push(r); }
+      r.items.push({x: x, s: it.str});
+    });
+    rows.sort(function(a, b){ return b.y - a.y; });
+    var text = rows.map(function(r){ return r.items.sort(function(a, b){ return a.x - b.x; }).map(function(i){ return i.s.trim(); }).join(" | "); }).join("\n");
+    var pic = null;
+    if (text.replace(/\s|\|/g, "").length < 60) pic = await lcPageBlob(page, 1600);
+    pages.push({text: text, pic: pic});
+  }
+  return pages;
+}
+function wfxMsg(t, err){ var m = $("#wmsg"); if (m){ m.textContent = t; m.className = "msg" + (err ? " err" : ""); } }
+async function importWfx(file){
+  if (!sample){ wfxMsg("Claude is not available in this view, so the WFX PDF cannot be read here.", true); return; }
+  if (!(file.type === "application/pdf" || /\.pdf$/i.test(file.name))){ wfxMsg(file.name + " is not a PDF.", true); return; }
+  var b = cur;
+  ctl = new AbortController();
+  $("#wfx").disabled = true; $("#wstop").hidden = false;
+  wfxMsg("Reading " + file.name + "...");
+  try{
+    var pages = await wfxRead(file);
+    var caps = null; try{ caps = await sample.limits(); }catch(e){}
+    var canPic = !!(caps && caps.images && caps.images.maxCount);
+    var all = {meta: {}, rows: [], prod: [], indirect: [], profit: null, fx: null, printed: {}, flags: []};
+    var okNum = function(v){ return v !== null && v !== undefined && v !== "" && !isNaN(parseFloat(v)); };
+    for (var i = 0; i < pages.length; i++){
+      var pg = pages[i], usePic = canPic && pg.pic;
+      if (!usePic && !pg.text.replace(/\s|\|/g, "")){ all.flags.push({item: "Page " + (i + 1) + " not read", note: "It has no text and pictures are not available here."}); continue; }
+      wfxMsg("Copying page " + (i + 1) + " of " + pages.length + " (" + all.rows.length + " lines so far)...");
+      var o = {signal: ctl.signal, cache: false, modelTier: "default"};
+      if (usePic) o.images = [pg.pic];
+      var d = await sample.json(wfxPrompt(pg, i + 1, pages.length, !!usePic), o);
+      if (!d || typeof d !== "object") continue;
+      var m = d.meta || {};
+      Object.keys(m).forEach(function(k){ if (m[k] && !all.meta[k]) all.meta[k] = m[k]; });
+      (Array.isArray(d.rows) ? d.rows : []).forEach(function(r){ if (r && (r.article || okNum(r.cons) || okNum(r.rate))) all.rows.push(r); });
+      (Array.isArray(d.prod) ? d.prod : []).forEach(function(x){ if (x && x.name) all.prod.push({name: String(x.name).trim(), amount: okNum(x.amount) ? parseFloat(x.amount) : 0}); });
+      if (Array.isArray(d.indirect)) d.indirect.forEach(function(x){ if (x && x.name) all.indirect.push(x); });
+      if (okNum(d.profit)) all.profit = parseFloat(d.profit);
+      if (num(d.fx) > 1) all.fx = num(d.fx);
+      var pr = d.printed || {}; Object.keys(pr).forEach(function(k){ if (okNum(pr[k])) all.printed[k] = parseFloat(pr[k]); });
+      if (Array.isArray(d.flags)) d.flags.forEach(function(f){ if (f && f.item) all.flags.push({item: String(f.item), note: String(f.note || "")}); });
+    }
+    if (!all.rows.length) throw {code: "invalid_json"};
+    if (cur !== b) return;
+    var u = cur.rows.length ? cur.rows : null;
+    cur.rows = all.rows.map(function(r){
+      var n = normRow(r); n.status = "wfx";
+      var sec = String(r.section || "").trim();
+      n.basis = [sec && !/^(fabric|trims?)$/i.test(sec) ? sec : "", String(r.basis || "")].filter(Boolean).join(". ");
+      return n;
+    });
+    var mt = all.meta;
+    ["style","description","buyer","brand","color","category","baseSize","fabricWidth","bomType"].forEach(function(k){ if (!cur[k] && mt[k]) cur[k] = String(mt[k]); });
+    if (!cur.season && SEASONS.indexOf(String(mt.season || "")) >= 0) cur.season = String(mt.season);
+    if (all.prod.length) cur.prod = all.prod;
+    if (all.indirect.length) cur.indirect = all.indirect.map(function(x){ return {name: String(x.name), kind: x.kind === "amt" ? "amt" : "pct", budget: num(x.budget)}; });
+    if (all.profit !== null) cur.profit = all.profit;
+    if (all.fx) cur.fx = all.fx;
+    var c = costOf(cur), pr2 = all.printed, diffs = [];
+    [["fabric", "Fabric total", c.fab], ["trims", "Trims total", c.trm], ["material", "Total material cost", c.mat], ["production", "Production cost", c.pt], ["indirect", "Indirect cost", c.it], ["total", "Material + production + indirect", c.all], ["sell", "Selling price", c.sell]].forEach(function(t){
+      if (!okNum(pr2[t[0]])) return; var v = pr2[t[0]];
+      if (Math.abs(v - t[2]) > Math.max(0.05, Math.abs(v) * 0.005)) diffs.push(t[1] + ": WFX " + f2(v) + ", here " + f2(t[2]));
+    });
+    var flags = all.flags.slice(0, 13);
+    if (diffs.length) flags.unshift({item: "Totals differ from the WFX PDF", note: diffs.join("; ") + ". A line may be missing or misread; compare with the PDF."});
+    cur.flags = flags;
+    if (assets && canWrite){ try{ var a = await assets.upload(file); cur.files.push({id: a.id, url: a.url, name: file.name, type: "application/pdf", size: file.size}); }catch(e){} }
+    if (cur !== b) return;
+    var keepSess = sess;
+    openEditor(cur); sess = keepSess; undoRows = u; renderFiles();
+    $("#undo").hidden = !u;
+    markDirty();
+    wfxMsg("Imported " + cur.rows.length + " lines from " + pages.length + (pages.length === 1 ? " page" : " pages") + ". " + (diffs.length ? "Some totals differ from the PDF, see Confirm before costing." : (Object.keys(pr2).length ? "Totals match the WFX PDF." : "Check the totals against the PDF.")));
+  }catch(e){
+    if (e && e.code === "cancelled") wfxMsg("Stopped.");
+    else wfxMsg(copyFor(e && e.code), true);
+  }finally{
+    if ($("#wfx")) $("#wfx").disabled = !canWrite; if ($("#wstop")) $("#wstop").hidden = true; ctl = null;
+  }
+}
+function normRow(r){
+  var st = (r && r.status === "tp" || r.status === "est" || r.status === "carry") ? r.status : "est";
+  var rate = (r.rate === null || r.rate === undefined || r.rate === "" || isNaN(parseFloat(r.rate))) ? null : parseFloat(r.rate);
+  return {group: r.group === "Fabric" ? "Fabric" : "Trims", article: String(r.article || ""), body: String(r.body || ""), color: String(r.color || ""), size: String(r.size || ""),
+    uom: String(r.uom || "PCS"), cons: num(r.cons), wastage: num(r.wastage), rate: rate, status: st, basis: String(r.basis || "")};
+}
+async function buildWithClaude(){
+  var msg = $("#bmsg"), btn = $("#build");
+  var hasText = sess.pdfs.length || cur.techText || sess.images.length || cur.notes;
+  if (!hasText){ msg.className = "msg err"; msg.textContent = "Upload a tech pack or pictures, or write notes first."; return; }
+  var imgs = [], caps = null;
+  try{ caps = await sample.limits(); }catch(e){}
+  var max = caps && caps.images ? Math.min(caps.images.maxCount, 10) : 0;
+  if (max){
+    sess.images.forEach(function(im){ imgs.push(im.blob); });
+    sess.pdfs.forEach(function(p){ p.pics.forEach(function(b){ imgs.push(b); }); });
+    imgs = imgs.slice(0, max);
+  }
+  ctl = new AbortController();
+  btn.disabled = true; $("#stop").hidden = false; msg.className = "msg"; msg.textContent = "Thinking...";
+  try{
+    var opts = {signal: ctl.signal, cache: false, modelTier: "default", onText: function(u){ msg.textContent = "Writing the BoM... " + u.text.length + " characters"; }};
+    if (imgs.length) opts.images = imgs;
+    var data = await sample.json(buildPrompt() + (imgs.length ? "\n\n(" + imgs.length + " pictures are attached: tech pack pages and uploaded images. Use them for the sketch, call-outs, artwork and button or trim pictures.)" : ""), opts);
+    if (!data || !Array.isArray(data.rows) || !data.rows.length) throw {code: "invalid_json"};
+    undoRows = cur.rows.length ? cur.rows : null;
+    cur.rows = data.rows.map(normRow);
+    cur.flags = Array.isArray(data.flags) ? data.flags.filter(function(f){ return f && f.item; }).slice(0, 12).map(function(f){ return {item: String(f.item), note: String(f.note || "")}; }) : [];
+    var m = data.meta || {};
+    ["style","description","buyer","brand","season","color","category","baseSize","fabricWidth"].forEach(function(k){
+      if (k === "season" && SEASONS.indexOf(String(m[k] || "")) < 0) return;
+      if (!cur[k] && m[k]){ cur[k] = String(m[k]); var el = document.querySelector('[data-f="' + k + '"]'); if (el) el.value = cur[k]; }
+    });
+    syncHead();
+    renderTable(); renderFlags(); markDirty();
+    $("#undo").hidden = !undoRows;
+    msg.textContent = "Done. " + cur.rows.length + " lines and " + cur.flags.length + " open items. Check the yellow rate cells.";
+  }catch(e){
+    if (e && e.code === "cancelled"){ msg.textContent = "Stopped."; }
+    else { msg.className = "msg err"; msg.textContent = copyFor(e && e.code); }
+  }finally{
+    btn.disabled = false; $("#stop").hidden = true; ctl = null;
+  }
+}
+
+/* ---------- Label Checker ---------- */
+var LC_SLOTS = [
+  {k: "po",  name: "Purchase order (PO)", hint: "Product name, fabric, colours, sizes and quantity.", full: "PO"},
+  {k: "tp",  name: "Tech pack", hint: "Label and tag pages matter most. Add fabric and care pages too.", full: "Tech pack"},
+  {k: "fpt", name: "FPT report", hint: "Fabric package test report from the lab.", full: "FPT report"},
+  {k: "tag", name: "Buyer portal: tag layout", hint: "Hang tag or product tag layout downloaded from the portal.", full: "Tag layout"},
+  {k: "wc",  name: "Buyer portal: wash care label", hint: "Wash care and fibre content label layout from the portal.", full: "Wash care layout"}
+];
+var lc = {docs: {po: [], tp: [], fpt: [], tag: [], wc: []}, res: null, resId: null, ctl: null, busy: false};
+var lcRecs = new Map(), lcFilter = {q: "", v: ""}, lcDelArm = null;
+var LC_VERDICT = {
+  ok: {t: "Can order", d: "All documents agree. Nothing blocks the order."},
+  check: {t: "Can order after you check a few points", d: "Nothing clearly wrong, but the points below need a person to confirm first."},
+  hold: {t: "Do not order yet", d: "The documents disagree on something that would put a wrong label or tag in the bulk."},
+  incomplete: {t: "Cannot decide, documents missing", d: "Add the missing documents and run the check again."}
+};
+
+function lcSlotsHtml(){
+  return LC_SLOTS.map(function(sl){
+    var fl = lc.docs[sl.k];
+    var list = fl.map(function(f, i){
+      return '<div class="file"><span>' + esc(f.name) + ' <span class="sub">' + f.pageCount + (f.pageCount === 1 ? ' page' : ' pages') + (f.scanned ? ', ' + f.scanned + ' scanned' : '') + '</span></span><button type="button" class="link danger" data-lcrm="' + sl.k + ':' + i + '">Remove</button></div>';
+    }).join("");
+    return '<div class="lc-slot' + (fl.length ? ' have' : '') + '"><h3>' + esc(sl.name) + '</h3><div class="hint">' + esc(sl.hint) + '</div>' +
+      '<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/gif" multiple data-lcfile="' + sl.k + '" aria-label="Add files for ' + esc(sl.name) + '">' +
+      (list ? '<div class="files">' + list + '</div>' : '') + '</div>';
+  }).join("");
+}
+function lcRenderSlots(){ $("#lc-slots").innerHTML = lcSlotsHtml(); }
+function lcMsg(t, err){ var m = $("#lc-msg"); if (m){ m.textContent = t; m.className = "msg" + (err ? " err" : ""); } }
+
+async function lcPageBlob(page, maxW){
+  var vp = page.getViewport({scale: 1}), sc = Math.min(2.2, maxW / vp.width), v2 = page.getViewport({scale: sc});
+  var cv = document.createElement("canvas"); cv.width = Math.round(v2.width); cv.height = Math.round(v2.height);
+  await page.render({canvasContext: cv.getContext("2d"), viewport: v2}).promise;
+  return new Promise(function(r){ cv.toBlob(r, "image/jpeg", 0.85); });
+}
+async function lcReadFile(file, slot){
+  var isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  if (!isPdf) return {name: file.name, text: "", pics: [file], pageCount: 1, scanned: 1};
+  await loadPdfJs();
+  var pdf = await window.pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+  var text = "", pics = [], scanned = 0, always = (slot === "tag" || slot === "wc");
+  for (var p = 1; p <= pdf.numPages; p++){
+    var page = await pdf.getPage(p), tc = await page.getTextContent(), lines = [], lastY = null, line = "";
+    tc.items.forEach(function(it){
+      var y = it.transform ? it.transform[5] : 0;
+      if (lastY !== null && Math.abs(y - lastY) > 2){ lines.push(line.trim()); line = ""; }
+      line += it.str + " "; lastY = y;
+    });
+    lines.push(line.trim());
+    var pt = lines.filter(Boolean).join("\n");
+    text += "\n--- page " + p + " ---\n" + pt;
+    var thin = pt.replace(/\s+/g, "").length < 60;
+    if (thin) scanned++;
+    if (pics.length < 6 && (thin || (always && pics.length < 3))){
+      var b = await lcPageBlob(page, 1500); if (b) pics.push(b);
+    }
+  }
+  return {name: file.name, text: text, pics: pics, pageCount: pdf.numPages, scanned: scanned};
+}
+async function lcAddFiles(slot, list){
+  var files = Array.prototype.slice.call(list || []);
+  for (var i = 0; i < files.length; i++){
+    var f = files[i];
+    if (!(f.type === "application/pdf" || /\.pdf$/i.test(f.name) || /^image\/(jpeg|png|webp|gif)$/.test(f.type))){ lcMsg(f.name + " skipped. Use a PDF or a JPEG, PNG, WebP or GIF picture.", true); continue; }
+    lcMsg("Reading " + f.name + "...");
+    try{ lc.docs[slot].push(await lcReadFile(f, slot)); lcMsg(""); }
+    catch(e){ lcMsg("Could not read " + f.name + ". Export its pages as pictures and add those.", true); }
+  }
+  lcRenderSlots();
+}
+
+var LC_GLOSS = "Turkish words you may meet: Takim = set, Elbise = dress, Gomlek = shirt, Bluz = blouse, Kemer = belt, Pantolon = trousers, Etek = skirt, Ceket = jacket, Pamuk = cotton, Poliamid = polyamide (nylon), Polyester = polyester, Viskon = viscose, Elastan = elastane, Dantel = lace, Astar = lining, Elyaf = fibre, Kumas = fabric, Yikama = wash, Utu = iron, Beden = size, Renk = colour, Adet = pieces.";
+function lcExtractPrompt(sl, d, hasPics){
+  var focus = {
+    po: "the PO number, style number, buyer and brand, season, delivery date, product name or type exactly as the PO writes it (also the price-component or description line), main fabric and any second fabric, lace or lining with their fibre content, colours, size range, quantity in total and by colour or size, country of origin, and any label or tag instructions",
+    tp: "the style number, product description and type, every fabric with its fibre content (shell, lining, lace, trims), colour, sizes, quantity if shown, the list of labels and tags with their IDs and placement, and the care instructions and symbols",
+    fpt: "the report number and date, the fabric or article tested, the fibre content found by the lab, the wash or care condition tested, and EVERY test with its result: dimensional stability, colour fastness, pilling, seam strength, fibre content and any others. Mark each test pass, fail or not evaluated, with the figure if given",
+    tag: "every line on the tag layout: product name or type line, style or model number, colour, size, fibre content, set or piece details, barcode text, country of origin, price field, and any quantity or order note. Copy wording exactly",
+    wc: "every line on the wash care label layout: fibre content by part (main fabric, lace, lining) with percentages, wash temperature and care symbols described in words, country of origin, size, style number, languages. Copy wording exactly"
+  }[sl.k];
+  return [
+"You are checking trims for an Indian garment exporter. Read the " + sl.full + " below (text extracted from the PDF" + (hasPics ? ", plus page pictures attached" : "") + ") and pull out the facts a label order depends on.",
+"Pull out: " + focus + ".",
+LC_GLOSS,
+"Some pages are scans. Read the pictures. Also copy any handwritten notes, stamps or sticky notes into annotations, word for word.",
+"Reply with ONE JSON object and nothing else:",
+'{"facts":[{"k":"short field name","v":"value exactly as written"}],"fibres":[{"part":"e.g. Main fabric","composition":"e.g. 100% Cotton"}],"care":["wash instruction in words"],"tests":[{"name":"","result":"pass|fail|not evaluated","detail":""}],"annotations":["handwritten note"],"unreadable":["what you could not read"]}',
+"Use empty arrays where nothing applies. Do not guess. If a value is not on the document, leave it out and do not invent it. Keep the original language and add a short English meaning in brackets for non-English words.",
+"",
+"Document text:",
+(d.text ? d.text.slice(0, 40000) : "(no text layer, use the pictures)")
+  ].join("\n");
+}
+function lcComparePrompt(facts, missing, ctx){
+  var parts = LC_SLOTS.map(function(sl){
+    return "=== " + sl.full + " (key " + sl.k + ") ===\n" + (facts[sl.k] ? JSON.stringify(facts[sl.k]) : "NOT SUPPLIED");
+  }).join("\n\n");
+  return [
+"You are the label-order checker at an Indian garment export factory. The PO, tech pack, FPT (fabric package test) report and the buyer portal tag layout and wash care label layout must all agree before wash care labels and tags are ordered. A wrong label in bulk is expensive, so be strict about real differences and quiet about wording noise.",
+LC_GLOSS,
+"",
+"Compare the documents below and reply with ONE JSON object and nothing else:",
+'{"fields":[{"field":"","values":{"po":"","tp":"","fpt":"","tag":"","wc":""},"result":"match|mismatch|missing|na","note":""}],',
+' "findings":[{"severity":"block|check","item":"short title","note":"plain explanation with the two values that disagree","docs":["po","tag"]}],',
+' "labels":[{"label":"Wash care label","verdict":"order|hold","reason":"one plain sentence"}],',
+' "fpt":[{"name":"","result":"pass|fail|not evaluated","detail":""}]}',
+"",
+"Fields to cover (skip a field only if no document mentions it, then result na): PO number, Style number, Buyer and brand, Product type or name (shirt, blouse, dress, set, belt), Set or piece contents, Colour, Size range, Quantity, Main fabric fibre content, Lace or second fabric or lining fibre content, Wash and care instructions, Country of origin, Season or date.",
+"Rules:",
+"1. values: what each document says for that field, short, original wording. Use an empty string where a document does not mention it or was not supplied.",
+"2. mismatch = documents that DO mention the field say different things in a way that would make a label or tag wrong (different product type, different fibre content, different colour, wrong set contents, quantity written differently by a large margin, wrong style or PO number). Different language or spelling of the same thing is a match. missing = a document that should carry it is silent on it.",
+"3. Fibre content: the label must carry every fabric part the garment has (main, lace, lining) with the same percentages as the PO and tech pack and the fibre result in the FPT. A fibre on the label that the PO calls something else is a mismatch. A fabric part missing from the label is a mismatch.",
+"4. FPT: list every test. A failed test on fibre content, dimensional stability (shrinkage, which decides the wash instruction), colour fastness or wash care is severity block. A failed pilling or strength test, or a test not evaluated, is severity check. Say plainly what failed.",
+"5. Wash care: temperature and method on the label layout must not be harsher than what the FPT tested and what the tech pack says.",
+"6. findings: block = ordering now would put a wrong label or tag in the bulk. check = unclear, unreadable, missing, minor or a person must confirm. Also turn every handwritten note or annotation that points to a problem into a finding. At most 14 findings, most serious first. No finding for things that match.",
+"7. labels: one entry each for the wash care label, the hang tag or product tag, and any other label the documents show. hold if that label has a block finding or depends on a disputed field, else order.",
+"8. Documents not supplied: " + (missing.length ? missing.join(", ") : "none") + ". Do not invent their content.",
+"9. ONE GARMENT RULE. A wash care label goes on a single garment, so it must never carry set wording: Takim, set, suit, 2-piece, 3-piece, or the names of two garments together (for example Elbise and Kemer). Set wording belongs only on the price tag or hang tag, and only when the PO really sells a set. If the wash care label layout has any set wording, that is a block finding titled 'Set wording on wash care label', and the wash care label is hold. If the price tag has Takim or a product line naming several garments, check it against the PO: the tag must say set only when the PO is a set, and the garments named must be the ones on the PO. Otherwise it is a block finding.",
+"10. The two labels that matter most are the wash care label and the price tag. Always list both in labels, then any other label.",
+"11. Worked example of a real mismatch. The tag layout says 'Bluz' (blouse) while the PO and the wash care label say 'Shirt' or 'Gomlek' (shirt). Bluz and Gomlek are different products, so this is a mismatch and a block finding: put the tag's wording and the PO's wording side by side in the note and hold the price tag until the buyer confirms the product name. Do the same for any pair of product words that mean different garments (Bluz/blouse, Gomlek/shirt, Elbise/dress, Kemer/belt, Takim/set). Also read the PO's price-component line and any handwritten note, as the product name can hide there.",
+"12. Plain, short English.",
+"",
+"Merchandiser's context: style " + (ctx.style || "(not given)") + ", PO " + (ctx.po || "(not given)") + ", buyer " + (ctx.buyer || "(not given)") + ".",
+"Merchandiser's notes (authoritative): " + (ctx.notes || "(none)"),
+"",
+parts
+  ].join("\n");
+}
+function lcAsArr(x){ return Array.isArray(x) ? x : []; }
+function lcClean(d){
+  d = d || {};
+  var vals = function(o){ var r = {}; ["po","tp","fpt","tag","wc"].forEach(function(k){ r[k] = String((o && o[k]) == null ? "" : o[k]).slice(0, 300); }); return r; };
+  return {
+    fields: lcAsArr(d.fields).filter(function(f){ return f && f.field; }).slice(0, 30).map(function(f){
+      var r = ["match","mismatch","missing","na"].indexOf(f.result) >= 0 ? f.result : "missing";
+      return {field: String(f.field), values: vals(f.values), result: r, note: String(f.note || "").slice(0, 400)}; }),
+    findings: lcAsArr(d.findings).filter(function(f){ return f && f.item; }).slice(0, 16).map(function(f){
+      return {severity: f.severity === "block" ? "block" : "check", item: String(f.item).slice(0, 120), note: String(f.note || "").slice(0, 600), docs: lcAsArr(f.docs).map(String).slice(0, 5)}; }),
+    labels: lcAsArr(d.labels).filter(function(f){ return f && f.label; }).slice(0, 8).map(function(f){
+      return {label: String(f.label), verdict: f.verdict === "order" ? "order" : "hold", reason: String(f.reason || "").slice(0, 300)}; }),
+    fpt: lcAsArr(d.fpt).filter(function(f){ return f && f.name; }).slice(0, 25).map(function(f){
+      var r = ["pass","fail","not evaluated"].indexOf(f.result) >= 0 ? f.result : "not evaluated";
+      return {name: String(f.name), result: r, detail: String(f.detail || "").slice(0, 300)}; })
+  };
+}
+function lcVerdictOf(res, missing){
+  var blocks = res.findings.filter(function(f){ return f.severity === "block"; }).length;
+  var checks = res.findings.length - blocks;
+  var mism = res.fields.filter(function(f){ return f.result === "mismatch"; }).length;
+  var fails = res.fpt.filter(function(t){ return t.result === "fail"; }).length;
+  if (blocks || mism) return "hold";
+  if (missing.length) return "incomplete";
+  if (checks || fails || res.fields.some(function(f){ return f.result === "missing"; })) return "check";
+  return "ok";
+}
+function lcMissing(){
+  var m = [];
+  ["po","tp","fpt"].forEach(function(k){ if (!lc.docs[k].length) m.push(LC_SLOTS.filter(function(s){ return s.k === k; })[0].full); });
+  if (!lc.docs.tag.length) m.push("Tag layout");
+  if (!lc.docs.wc.length) m.push("Wash care layout");
+  return m;
+}
+async function lcRun(){
+  var ctx = {style: $("#lc-style").value.trim(), po: $("#lc-po").value.trim(), buyer: $("#lc-buyer").value.trim(), notes: $("#lc-notes").value.trim()};
+  var have = LC_SLOTS.filter(function(s){ return lc.docs[s.k].length; });
+  if (!have.length){ lcMsg("Add at least one document first.", true); return; }
+  if (!sample){ lcMsg("Claude is not available in this view.", true); return; }
+  var caps = null; try{ caps = await sample.limits(); }catch(e){}
+  var max = caps && caps.images ? Math.min(caps.images.maxCount, 8) : 0;
+  var missing = lcMissing();
+  lc.ctl = new AbortController(); lc.busy = true;
+  $("#lc-run").disabled = true; $("#lc-stop").hidden = false; lcMsg("Thinking..."); $("#lc-result").innerHTML = "";
+  var facts = {}, unread = [];
+  try{
+    for (var i = 0; i < have.length; i++){
+      var sl = have[i], files = lc.docs[sl.k];
+      var d = {text: files.map(function(f){ return f.text; }).join("\n"), pics: []};
+      files.forEach(function(f){ d.pics = d.pics.concat(f.pics); });
+      var pics = max ? d.pics.slice(0, max) : [];
+      if (!pics.length && !d.text.replace(/\s/g, "")){ unread.push(sl.full + " has no readable text and pictures are not available here."); continue; }
+      lcMsg("Reading " + sl.full + " (" + (i + 1) + " of " + have.length + ")...");
+      var o = {signal: lc.ctl.signal, cache: false, modelTier: "default"};
+      if (pics.length) o.images = pics;
+      var got = await sample.json(lcExtractPrompt(sl, d, pics.length > 0), o);
+      facts[sl.k] = got && typeof got === "object" ? got : {};
+      if (d.pics.length > pics.length) unread.push(sl.full + ": only the first " + pics.length + " page pictures were read.");
+    }
+    lcMsg("Cross-checking the documents...");
+    var raw = await sample.json(lcComparePrompt(facts, missing, ctx), {signal: lc.ctl.signal, cache: false, modelTier: "default"});
+    var res = lcClean(raw);
+    var wcText = JSON.stringify(facts.wc || {});
+    if (/tak[\u0131i\u0130I]m/i.test(wcText) && !res.findings.some(function(f){ return /tak[\u0131i]m|set wording/i.test(f.item + " " + f.note) && (f.docs || []).indexOf("wc") >= 0; })){
+      res.findings.unshift({severity: "block", item: "Set wording on wash care label", note: "The wash care layout carries the word Takim (set). A wash care label goes on one garment, so set wording must come off it. Keep Takim on the price tag only, if the PO is a set.", docs: ["wc"]});
+    }
+    if (!res.fields.length && !res.findings.length) throw {code: "invalid_json"};
+    res.unread = unread; res.missing = missing; res.verdict = lcVerdictOf(res, missing);
+    if (res.verdict === "incomplete") res.labels.forEach(function(l){ l.verdict = "hold"; if (!l.reason) l.reason = "Documents missing."; });
+    res.docs = {}; LC_SLOTS.forEach(function(s){ res.docs[s.k] = lc.docs[s.k].map(function(f){ return f.name; }); });
+    res.ctx = ctx; res.checkedAt = nowIso();
+    lc.res = res; lc.resId = null;
+    lcShow();
+    lcMsg("Done.");
+    await lcSave();
+  }catch(e){
+    if (e && e.code === "cancelled") lcMsg("Stopped.");
+    else lcMsg(copyFor(e && e.code), true);
+  }finally{
+    lc.busy = false; $("#lc-run").disabled = false; $("#lc-stop").hidden = true; lc.ctl = null;
+  }
+}
+function lcChip(sev){ return sev === "block" ? '<span class="chip block">Stops order</span>' : '<span class="chip chk">Check</span>'; }
+function lcResHtml(res){
+  var v = LC_VERDICT[res.verdict] || LC_VERDICT.check;
+  var h = '<div class="lc-verdict ' + res.verdict + '"><b>' + esc(v.t) + '</b><span>' + esc(v.d) + '</span></div>';
+  if (res.missing && res.missing.length) h += '<div class="banner">Not supplied: ' + esc(res.missing.join(", ")) + '.</div>';
+  h += '<div class="panel"><h2>Each label</h2><div class="tablebox"><table class="lc" style="min-width:0"><thead><tr><th>Label</th><th>Order?</th><th>Why</th></tr></thead><tbody>' +
+    (res.labels.length ? res.labels.map(function(l){ return '<tr><td><b>' + esc(l.label) + '</b></td><td>' + (l.verdict === "order" ? '<span class="chip good">Order</span>' : '<span class="chip block">Hold</span>') + '</td><td>' + esc(l.reason) + '</td></tr>'; }).join("") : '<tr><td colspan="3">No labels listed.</td></tr>') + '</tbody></table></div></div>';
+  var f = res.findings;
+  h += '<div class="panel"><h2>What to fix or confirm (' + f.length + ')</h2>' +
+    (f.length ? '<ul class="lc-find">' + f.map(function(x){ return '<li>' + lcChip(x.severity) + '<div><b>' + esc(x.item) + '</b><small>' + esc(x.note) + '</small>' + (x.docs && x.docs.length ? '<small>Documents: ' + esc(x.docs.map(function(k){ var s = LC_SLOTS.filter(function(z){ return z.k === k; })[0]; return s ? s.full : k; }).join(", ")) + '</small>' : '') + '</div></li>'; }).join("") + '</ul>' : '<div class="sub">Nothing found.</div>') + '</div>';
+  h += '<div class="panel"><h2>Side by side</h2><div class="tablebox"><table class="lc"><thead><tr><th>Field</th>' + LC_SLOTS.map(function(s){ return '<th>' + esc(s.full) + '</th>'; }).join("") + '<th>Result</th></tr></thead><tbody>' +
+    res.fields.map(function(r){
+      var cls = r.result === "mismatch" ? "bad" : (r.result === "missing" ? "mis" : "");
+      var chip = r.result === "match" ? '<span class="chip good">Match</span>' : r.result === "mismatch" ? '<span class="chip block">Mismatch</span>' : r.result === "missing" ? '<span class="chip chk">Missing</span>' : '<span class="chip na">n/a</span>';
+      return '<tr class="' + cls + '"><td><b>' + esc(r.field) + '</b></td>' + LC_SLOTS.map(function(s){ return '<td class="v">' + (esc(r.values[s.k]) || '<span class="sub">-</span>') + '</td>'; }).join("") + '<td>' + chip + (r.note ? '<small class="sub" style="display:block">' + esc(r.note) + '</small>' : '') + '</td></tr>';
+    }).join("") + '</tbody></table></div></div>';
+  if (res.fpt.length){
+    h += '<div class="panel"><h2>FPT tests</h2><div class="tablebox"><table class="lc" style="min-width:0"><thead><tr><th>Test</th><th>Result</th><th>Detail</th></tr></thead><tbody>' +
+      res.fpt.map(function(t){ return '<tr><td>' + esc(t.name) + '</td><td>' + (t.result === "pass" ? '<span class="chip good">Pass</span>' : t.result === "fail" ? '<span class="chip block">Fail</span>' : '<span class="chip chk">Not evaluated</span>') + '</td><td>' + esc(t.detail) + '</td></tr>'; }).join("") + '</tbody></table></div></div>';
+  }
+  if (res.unread && res.unread.length) h += '<div class="banner">' + res.unread.map(esc).join("<br>") + '</div>';
+  h += '<div class="row"><button id="lc-pdf" type="button" class="primary">Download PDF report</button><button id="lc-csv" type="button">Export result (CSV)</button><span class="msg" id="lc-savemsg"></span></div>';
+  return h;
+}
+function lcShow(){ $("#lc-result").innerHTML = lc.res ? lcResHtml(lc.res) : ""; }
+function lcCsv(){
+  var r = lc.res; if (!r || !downloads) return;
+  var L = [];
+  L.push(["Label check", r.ctx.style, "PO", r.ctx.po, "Buyer", r.ctx.buyer, "Verdict", (LC_VERDICT[r.verdict] || {}).t].map(csvEsc).join(","));
+  L.push(""); L.push("LABELS"); L.push("Label,Order,Reason");
+  r.labels.forEach(function(l){ L.push([l.label, l.verdict === "order" ? "Order" : "Hold", l.reason].map(csvEsc).join(",")); });
+  L.push(""); L.push("FINDINGS"); L.push("Severity,Item,Note,Documents");
+  r.findings.forEach(function(f){ L.push([f.severity === "block" ? "Stops order" : "Check", f.item, f.note, (f.docs || []).join(" / ")].map(csvEsc).join(",")); });
+  L.push(""); L.push("SIDE BY SIDE"); L.push(["Field"].concat(LC_SLOTS.map(function(s){ return s.full; }), ["Result", "Note"]).map(csvEsc).join(","));
+  r.fields.forEach(function(x){ L.push([x.field].concat(LC_SLOTS.map(function(s){ return x.values[s.k]; }), [x.result, x.note]).map(csvEsc).join(",")); });
+  L.push(""); L.push("FPT TESTS"); L.push("Test,Result,Detail");
+  r.fpt.forEach(function(t){ L.push([t.name, t.result, t.detail].map(csvEsc).join(",")); });
+  var name = safeName((r.ctx.style || "style") + "_" + (r.ctx.po || "PO")) + "_label_check.csv";
+  downloads.save({filename: name, data: "﻿" + L.join("\r\n"), mimeType: "text/csv"}).then(function(){ var m = $("#lc-savemsg"); if (m) m.textContent = "Saved " + name; },
+    function(e){ var m = $("#lc-savemsg"); if (m) m.textContent = (e && e.code === "declined") ? "Download cancelled." : "Could not save the file."; });
+}
+
+
+function lcMakePdf(r){
+  var doc = new window.jspdf.jsPDF({unit: "mm", format: "a4", orientation: "landscape"});
+  var W = 297, H = 210, M = 12, U = W - 2 * M;
+  var PLUM = [113, 75, 103], INK = [30, 30, 30], LINE = [200, 200, 200];
+  var table = function(o){ if (doc.autoTable) doc.autoTable(o); else window.jspdf.autoTable(doc, o); };
+  var base = {theme: "grid", margin: {left: M, right: M, bottom: 14}, styles: {font: "helvetica", fontSize: 8, cellPadding: 1.6, lineColor: LINE, lineWidth: 0.1, textColor: INK, overflow: "linebreak", valign: "top"},
+    headStyles: {fillColor: PLUM, textColor: 255, fontStyle: "normal"}};
+  var y = 14;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor.apply(doc, INK); doc.text("GUDI EXPORTS PRIVATE LIMITED", M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.text("Label Check Report", W - M, y, {align: "right"});
+  y += 9; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor.apply(doc, PLUM);
+  doc.text("Label and tag order check - " + (r.ctx.style || "style not given"), M, y);
+  y += 6; doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor.apply(doc, INK);
+  doc.text("PO: " + (r.ctx.po || "-") + "    Buyer: " + (r.ctx.buyer || "-") + "    Checked on: " + (fmtDate(r.checkedAt || nowIso()) || "-"), M, y);
+  y += 5;
+  var docsLine = LC_SLOTS.map(function(sl){ var f = (r.docs && r.docs[sl.k]) || []; return sl.full + ": " + (f.length ? f.join(", ") : "not supplied"); }).join("   |   ");
+  var dl = doc.splitTextToSize("Documents checked - " + docsLine, U); doc.setFontSize(8); doc.text(dl, M, y); y += dl.length * 3.8 + 3;
+  var v = LC_VERDICT[r.verdict] || LC_VERDICT.check;
+  var VC = {ok: [214, 238, 221], check: [252, 240, 200], hold: [248, 214, 200], incomplete: [214, 226, 245]}[r.verdict] || [240, 240, 240];
+  doc.setFillColor.apply(doc, VC); doc.setDrawColor.apply(doc, LINE); doc.rect(M, y, U, 15, "FD");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor.apply(doc, INK); doc.text(v.t, M + 4, y + 6.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.text(v.d, M + 4, y + 11.5);
+  y += 20;
+  if (r.missing && r.missing.length){ doc.setFontSize(8.5); doc.setTextColor(150, 60, 40); doc.text("Not supplied: " + r.missing.join(", ") + ".", M, y); doc.setTextColor.apply(doc, INK); y += 6; }
+  var head = function(t){ if (y > H - 40){ doc.addPage(); y = 14; } doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor.apply(doc, PLUM); doc.text(t, M, y); y += 2; };
+  var after = function(){ y = doc.lastAutoTable.finalY + 7; };
+  var DOCNAME = function(k){ var q = LC_SLOTS.filter(function(z){ return z.k === k; })[0]; return q ? q.full : k; };
+
+  head("1. Each label: order or hold");
+  table(Object.assign({}, base, {startY: y, head: [["Label", "Decision", "Reason"]],
+    body: r.labels.length ? r.labels.map(function(l){ return [l.label, l.verdict === "order" ? "ORDER" : "HOLD", l.reason]; }) : [["No labels listed", "", ""]],
+    columnStyles: {0: {cellWidth: 70, fontStyle: "bold"}, 1: {cellWidth: 25, fontStyle: "bold"}},
+    didParseCell: function(d){ if (d.section === "body" && d.column.index === 1){ d.cell.styles.textColor = d.cell.raw === "ORDER" ? [30, 110, 60] : [170, 50, 30]; } }}));
+  after();
+
+  head("2. Actions to take before ordering (" + r.findings.length + ")");
+  table(Object.assign({}, base, {startY: y, head: [["#", "Level", "Issue", "What is wrong / what to confirm", "Documents"]],
+    body: r.findings.length ? r.findings.map(function(f, i){ return [String(i + 1), f.severity === "block" ? "STOPS ORDER" : "Check", f.item, f.note, (f.docs || []).map(DOCNAME).join(", ")]; }) : [["", "", "Nothing found", "", ""]],
+    columnStyles: {0: {cellWidth: 8}, 1: {cellWidth: 26, fontStyle: "bold"}, 2: {cellWidth: 60, fontStyle: "bold"}, 4: {cellWidth: 45}},
+    didParseCell: function(d){ if (d.section === "body" && d.column.index === 1 && d.cell.raw === "STOPS ORDER") d.cell.styles.textColor = [170, 50, 30]; }}));
+  after();
+
+  head("3. Side by side: what each document says");
+  var cw = Math.floor((U - 34 - 24) / 5);
+  table(Object.assign({}, base, {startY: y, styles: Object.assign({}, base.styles, {fontSize: 7.5}),
+    head: [["Field"].concat(LC_SLOTS.map(function(sl){ return sl.full; }), ["Result"])],
+    body: r.fields.map(function(x){ return [x.field].concat(LC_SLOTS.map(function(sl){ return x.values[sl.k] || "-"; }), [({match: "Match", mismatch: "MISMATCH", missing: "Missing", na: "n/a"})[x.result] + (x.note ? "\n" + x.note : "")]); }),
+    columnStyles: {0: {cellWidth: 34, fontStyle: "bold"}, 6: {cellWidth: 24 + 6}},
+    didParseCell: function(d){
+      if (d.section !== "body") return;
+      var res = r.fields[d.row.index].result;
+      if (res === "mismatch") d.cell.styles.fillColor = [250, 226, 214]; else if (res === "missing") d.cell.styles.fillColor = [253, 246, 214];
+      if (d.column.index === 6 && res === "mismatch") d.cell.styles.fontStyle = "bold";
+    }}));
+  after();
+
+  if (r.fpt.length){
+    head("4. FPT test results");
+    table(Object.assign({}, base, {startY: y, head: [["Test", "Result", "Detail"]],
+      body: r.fpt.map(function(t){ return [t.name, ({pass: "Pass", fail: "FAIL"})[t.result] || "Not evaluated", t.detail]; }),
+      columnStyles: {0: {cellWidth: 70}, 1: {cellWidth: 30, fontStyle: "bold"}},
+      didParseCell: function(d){ if (d.section === "body" && d.column.index === 1 && d.cell.raw === "FAIL") d.cell.styles.textColor = [170, 50, 30]; }}));
+    after();
+  }
+  if (r.unread && r.unread.length){ head("Reading notes"); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, INK); var t = doc.splitTextToSize(r.unread.join("  "), U); doc.text(t, M, y + 3); y += t.length * 3.8 + 6; }
+  if (r.ctx.notes){ head("Merchandiser's notes"); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor.apply(doc, INK); var tn = doc.splitTextToSize(r.ctx.notes, U); doc.text(tn, M, y + 3); y += tn.length * 3.8 + 6; }
+  doc.setFont("helvetica", "italic"); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+  if (y > H - 22){ doc.addPage(); y = 14; }
+  doc.text("Read by Claude from the documents supplied. Confirm the points above against the original documents before placing the order.", M, y + 2);
+  var n = doc.getNumberOfPages();
+  for (var i = 1; i <= n; i++){ doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(130, 130, 130); doc.text("Page " + i + " / " + n, W - M, H - 6, {align: "right"}); }
+  return doc;
+}
+async function lcPdf(){
+  var r = lc.res, m = $("#lc-savemsg"), btn = $("#lc-pdf");
+  if (!r) return;
+  if (!downloads){ m.className = "msg"; m.textContent = "Download is not available in this view."; return; }
+  btn.disabled = true; m.className = "msg"; m.textContent = "Preparing PDF...";
+  try{
+    await loadPdfLib();
+    var doc = lcMakePdf(r);
+    var name = safeName((r.ctx.style || "style") + "_" + (r.ctx.po || "PO")) + "_Label_Check_Report.pdf";
+    await downloads.save({filename: name, data: doc.output("arraybuffer")});
+    m.textContent = "Saved " + name;
+  }catch(e){
+    m.className = "msg err";
+    m.textContent = (e && e.code === "declined") ? "Download cancelled." : "Could not make the PDF. Check your connection and try again.";
+  }finally{ btn.disabled = false; }
+}
+
+/* saved checks */
+function lcListen(){
+  db.collection("labelChecks").onSnapshot(function(snap){
+    lcRecs.clear();
+    snap.docs.forEach(function(d){ var raw = d.data(); if (!raw) return; var o = JSON.parse(JSON.stringify(raw)); o.id = d.id; lcRecs.set(d.id, o); });
+    lcRenderHist();
+  }, function(){ lcRenderHist(); });
+}
+function lcSave(){
+  if (!db || !canWrite || !lc.res) return Promise.resolve();
+  var r = lc.res, id = lc.resId || ("lc" + uid());
+  lc.resId = id;
+  var body = {style: r.ctx.style || "", po: r.ctx.po || "", buyer: r.ctx.buyer || "", notes: r.ctx.notes || "", verdict: r.verdict, created: nowIso(), createdBy: myId,
+    blocks: r.findings.filter(function(f){ return f.severity === "block"; }).length, checks: r.findings.filter(function(f){ return f.severity !== "block"; }).length,
+    missing: r.missing || [], unread: r.unread || [], docs: r.docs || {},
+    result: {fields: r.fields, findings: r.findings, labels: r.labels, fpt: r.fpt}};
+  return db.doc("labelChecks/" + id).set(body).then(function(){ var m = $("#lc-savemsg"); if (m) m.textContent = "Saved to the list below."; },
+    function(){ var m = $("#lc-savemsg"); if (m){ m.className = "msg err"; m.textContent = "Could not save this check."; } });
+}
+function lcRenderHist(){
+  var box = $("#lc-hist"); if (!box) return;
+  if (!db){ box.innerHTML = '<div class="banner">Saving is not available, so checks are not stored.</div>'; return; }
+  var q = lcFilter.q.toLowerCase(), vf = lcFilter.v;
+  var rows = Array.from(lcRecs.values()).filter(function(x){
+    if (vf && x.verdict !== vf) return false;
+    if (q && (x.style + " " + x.po + " " + x.buyer).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).sort(function(a, b){ return String(b.created).localeCompare(String(a.created)); });
+  var h = '<div class="panel"><h2>Earlier checks (' + lcRecs.size + ')</h2><div class="filters">' +
+    '<label class="f">Search style, PO or buyer<input id="lc-q" type="search" value="' + esc(lcFilter.q) + '"></label>' +
+    '<label class="f">Verdict<select id="lc-fv"><option value="">All</option>' + Object.keys(LC_VERDICT).map(function(k){ return '<option value="' + k + '"' + (vf === k ? " selected" : "") + '>' + esc(LC_VERDICT[k].t) + '</option>'; }).join("") + '</select></label></div>' +
+    '<div class="tablebox"><table class="lib" style="min-width:640px"><thead><tr><th>Style</th><th>PO</th><th>Buyer</th><th>Verdict</th><th class="n">Stops</th><th class="n">Checks</th><th>Checked</th><th></th></tr></thead><tbody>' +
+    (rows.length ? rows.map(function(x){
+      var cls = {ok: "good", check: "chk", hold: "block", incomplete: "na"}[x.verdict] || "na";
+      return '<tr data-lcopen="' + esc(x.id) + '"><td><b>' + esc(x.style) + '</b></td><td>' + esc(x.po) + '</td><td>' + esc(x.buyer) + '</td><td><span class="chip ' + cls + '">' + esc((LC_VERDICT[x.verdict] || {}).t || x.verdict) + '</span></td><td class="n">' + (x.blocks || 0) + '</td><td class="n">' + (x.checks || 0) + '</td><td>' + esc(fmtDate(x.created)) + (x.createdBy ? '<small>' + esc(who(x.createdBy)) + '</small>' : '') + '</td><td><button type="button" class="link danger" data-lcdel="' + esc(x.id) + '">' + (lcDelArm === x.id ? "Press again to delete" : "Delete") + '</button></td></tr>';
+    }).join("") : '<tr><td colspan="8" class="empty">' + (lcRecs.size ? "No checks match the filters." : "No saved checks yet. Each check you run is saved here.") + '</td></tr>') + '</tbody></table></div></div>';
+  var keep = document.activeElement && document.activeElement.id;
+  box.innerHTML = h;
+  if (keep === "lc-q"){ var el = $("#lc-q"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+function lcOpen(id){
+  var x = lcRecs.get(id); if (!x) return;
+  $("#lc-style").value = x.style || ""; $("#lc-po").value = x.po || ""; $("#lc-buyer").value = x.buyer || ""; $("#lc-notes").value = x.notes || "";
+  Object.keys(lc.docs).forEach(function(k){ lc.docs[k] = []; }); lcRenderSlots();
+  var r = x.result || {};
+  lc.res = {fields: r.fields || [], findings: r.findings || [], labels: r.labels || [], fpt: r.fpt || [], verdict: x.verdict, missing: x.missing || [], unread: x.unread || [], docs: x.docs || {},
+    checkedAt: x.created, ctx: {style: x.style, po: x.po, buyer: x.buyer, notes: x.notes}};
+  lc.resId = id; lcShow(); lcMsg("Opened a saved check. Add documents again to run a new one.");
+  $("#lc-result").scrollIntoView({block: "start"});
+}
+(function lcInit(){
+  lcRenderSlots(); lcRenderHist();
+  var pane = $("#pane-label");
+  pane.addEventListener("change", function(e){
+    var t = e.target;
+    if (t.matches && t.matches("[data-lcfile]")){ var k = t.getAttribute("data-lcfile"), fl = t.files; lcAddFiles(k, fl).then(function(){ }); }
+    if (t.id === "lc-fv"){ lcFilter.v = t.value; lcRenderHist(); }
+  });
+  pane.addEventListener("input", function(e){ if (e.target.id === "lc-q"){ lcFilter.q = e.target.value; lcRenderHist(); } });
+  pane.addEventListener("click", function(e){
+    var t = e.target;
+    var rm = t.closest("[data-lcrm]");
+    if (rm){ var p = rm.getAttribute("data-lcrm").split(":"); lc.docs[p[0]].splice(parseInt(p[1], 10), 1); lcRenderSlots(); return; }
+    var dl = t.closest("[data-lcdel]");
+    if (dl){
+      var id = dl.getAttribute("data-lcdel");
+      if (lcDelArm !== id){ lcDelArm = id; lcRenderHist(); setTimeout(function(){ if (lcDelArm === id){ lcDelArm = null; lcRenderHist(); } }, 4000); return; }
+      lcDelArm = null; if (lc.resId === id) lc.resId = null;
+      if (db) db.doc("labelChecks/" + id).delete().catch(function(){}); return;
+    }
+    var op = t.closest("[data-lcopen]"); if (op){ lcOpen(op.getAttribute("data-lcopen")); return; }
+    if (t.id === "lc-run") lcRun();
+    else if (t.id === "lc-stop"){ if (lc.ctl) lc.ctl.abort(); }
+    else if (t.id === "lc-csv") lcCsv();
+    else if (t.id === "lc-pdf") lcPdf();
+    else if (t.id === "lc-new"){
+      if (lc.busy) return;
+      Object.keys(lc.docs).forEach(function(k){ lc.docs[k] = []; }); lc.res = null; lc.resId = null;
+      ["lc-style","lc-po","lc-buyer","lc-notes"].forEach(function(i){ $("#" + i).value = ""; });
+      lcRenderSlots(); lcShow(); lcMsg("");
+    }
+  });
+})();
+</script>

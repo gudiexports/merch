@@ -26,6 +26,13 @@ module.exports = async function handler(req, res) {
   } catch (e) {}
   if (!email.endsWith("@gudi.net")) return res.status(401).json({ error: "sign_in" });
 
+  // must be a listed, active person (Users page)
+  try {
+    const a = await fetch(SUPABASE_URL + "/rest/v1/rpc/my_access", { method: "POST", headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + token, "content-type": "application/json" }, body: "{}" });
+    const acc = a.ok ? await a.json() : null;
+    if (!acc || !acc.email) return res.status(403).json({ error: "no_access" });
+  } catch (e) { return res.status(403).json({ error: "no_access" }); }
+
   if (req.method === "GET") return res.status(200).json({ ok: true });
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
 

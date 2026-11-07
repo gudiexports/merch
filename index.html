@@ -1826,7 +1826,7 @@ function lcOpen(id){
           if (pw.length < 8) throw new Error("Password needs 8 or more characters.");
           return M.token().then(function(t){ return fetch("/api/admin-user", {method: "POST", headers: {"content-type": "application/json", authorization: "Bearer " + t}, body: JSON.stringify({email: em, password: pw})}); })
             .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){
-              if (!r.ok){ throw new Error(j.error === "not_configured" ? "Passwords are not set up yet. The user was saved, but add SUPABASE_SERVICE_ROLE_KEY in Vercel." : "Could not set the password (" + (j.error || r.status) + ").") ; }
+              if (!r.ok){ throw new Error(j.error === "not_configured" ? "Passwords are not set up yet. The user was saved, but add SUPABASE_SERVICE_ROLE_KEY in Vercel." : j.error === "wrong_key" ? "The key saved in Vercel is the public one. Replace SUPABASE_SERVICE_ROLE_KEY with the secret key (starts sb_secret_) from the Merch project, then redeploy." : j.error === "not_listed" ? "This email is not on the list yet. Press Save user again." : "Could not set the password (" + (j.error || r.status) + ").") ; }
               return pw; }); });
         })
         .then(function(pw){ msg(pw ? "Saved " + em + ". Login: " + em + " / " + pw + "  (copy it now, it is not shown again)." : "Saved " + em + "."); if (!pw) clear(); else { $u("u-pass").value = ""; $u("u-email").readOnly = false; } return load(); }, function(e){ msg(e.message, true); });

@@ -8,6 +8,12 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
   const secret = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim().replace(/^["']|["']$/g, "");
   if (!secret) return res.status(503).json({ error: "not_configured" });
+  // the public (publishable / anon) key is not the secret key
+  let isPublic = secret.startsWith("sb_publishable_");
+  if (secret.split(".").length === 3) {
+    try { isPublic = JSON.parse(Buffer.from(secret.split(".")[1], "base64").toString()).role !== "service_role"; } catch (e) {}
+  }
+  if (isPublic) return res.status(503).json({ error: "wrong_key" });
 
   // caller must be a signed-in admin
   const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
@@ -30,10 +36,10 @@ module.exports = async function handler(req, res) {
   const H = { apikey: secret, "content-type": "application/json" };
   if (!secret.startsWith("sb_secret_")) H.Authorization = "Bearer " + secret;
   try {
-    const listed = await fetch(SUPABASE_URL + "/rest/v1/app_users?select=email&email=eq." + encodeURIComponent(email), { headers: H });
-    if (!listed.ok) { console.error("admin-user lookup failed", listed.status, (await listed.text()).slice(0, 200)); return res.status(502).json({ error: "lookup_failed" }); }
-    const rows = await listed.json();
-    if (!rows.length) return res.status(400).json({ error: "not_listed" });
+    const lr = await fetch(SUPABASE_URL + "/rest/v1/rpc/admin_list_users", { method: "POST", headers: { apikey: SUPABASE_KEY, Authorization: "Bearer " + token, "content-type": "application/json" }, body: "{}" });
+    if (!lr.ok) { console.error("admin-user list failed", lr.status); return res.status(502).json({ error: "lookup_failed" }); }
+    const people = await lr.json();
+    if (!(people || []).some((u) => String(u.email).toLowerCase() === email)) return res.status(400).json({ error: "not_listed" });
 
     // try to create the login
     const c = await fetch(SUPABASE_URL + "/auth/v1/admin/users", { method: "POST", headers: H, body: JSON.stringify({ email, password, email_confirm: true }) });

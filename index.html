@@ -186,11 +186,10 @@ table.lc tr.mis td{background:var(--warn-bg)}
   ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:#f4f7fb;display:none;align-items:center;justify-content:center;font-family:system-ui,sans-serif;padding:16px";
   ov.innerHTML = '<form id="gl" style="background:#fff;border:1px solid #cfd8e6;border-radius:10px;padding:24px;width:100%;max-width:340px;box-shadow:0 4px 18px rgba(0,0,0,.08)">' +
     '<h2 style="margin:0 0 4px;font-size:20px;color:#1f3a5f">Merchant’s Helper</h2>' +
-    '<p style="margin:0 0 16px;color:#556;font-size:13px">Sign in with your Gudi email.</p>' +
+    '<p style="margin:0 0 16px;color:#556;font-size:13px">Sign in with your Gudi email and the password Sanjeev gave you.</p>' +
     '<input id="gl-e" type="email" placeholder="name@gudi.net" required autocomplete="username" style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:8px;border:1px solid #b9c4d6;border-radius:6px;font-size:14px">' +
     '<input id="gl-p" type="password" placeholder="Password (6+ characters)" required minlength="6" autocomplete="current-password" style="width:100%;box-sizing:border-box;padding:9px;margin-bottom:12px;border:1px solid #b9c4d6;border-radius:6px;font-size:14px">' +
     '<button id="gl-in" type="submit" style="width:100%;padding:10px;background:#1f5fa8;color:#fff;border:0;border-radius:6px;font-size:14px;cursor:pointer">Sign in</button>' +
-    '<button id="gl-up" type="button" style="width:100%;padding:9px;margin-top:8px;background:#fff;color:#1f5fa8;border:1px solid #1f5fa8;border-radius:6px;font-size:14px;cursor:pointer">Create account</button>' +
     '<div id="gl-m" style="margin-top:12px;font-size:13px;color:#b3261e;min-height:18px"></div></form>';
   function mount(){ document.body.appendChild(ov); }
   if (document.body) mount(); else document.addEventListener("DOMContentLoaded", mount);
@@ -213,19 +212,6 @@ table.lc tr.mis td{background:var(--warn-bg)}
       else accept(r.data.session);
     });
   });
-  ov.addEventListener("click", function(ev){
-    if (ev.target.id !== "gl-up") return;
-    msg("");
-    var e = ov.querySelector("#gl-e").value.trim(), p = ov.querySelector("#gl-p").value;
-    if (!okEmail(e)){ msg("Use your " + DOMAIN + " email."); return; }
-    if (p.length < 6){ msg("Password needs 6 or more characters."); return; }
-    sb.auth.signUp({email: e, password: p}).then(function(r){
-      if (r.error) msg(r.error.message);
-      else if (r.data.session) accept(r.data.session);
-      else msg("Account created. Open the email we sent, confirm it, then sign in.", true);
-    });
-  });
-
   /* ---- database calls the page already makes ---- */
   var MAP = {boms: {get: "get_boms", save: "save_bom", del: "delete_bom"}, labelChecks: {get: "get_label_checks", save: "save_label_check", del: "delete_label_check"}};
   var listeners = {boms: [], labelChecks: []};
@@ -313,7 +299,8 @@ table.lc tr.mis td{background:var(--warn-bg)}
     access: function(){ return ready.then(function(){ return sb.rpc("my_access"); }).then(function(r){ return r.error ? null : r.data; }); },
     rpc: function(n, a){ return sb.rpc(n, a).then(function(r){ if (r.error) throw new Error(r.error.message); return r.data; }); },
     signOut: function(){ return sb.auth.signOut().then(function(){ location.reload(); }); },
-    email: function(){ return email; }
+    email: function(){ return email; },
+    token: function(){ return token(); }
   };
   window.claude = {use: function(n){
     if (n === "db") return ready.then(function(){ return db; });
@@ -1781,11 +1768,12 @@ function lcOpen(id){
     bar.appendChild(btn);
     var pane = el("div", {id: "pane-users", "class": "view", role: "tabpanel", hidden: ""});
     pane.innerHTML =
-      '<div class="top"><div><h1>Users</h1><div class="sub">Give each merchant their buyers and tabs. They see and create BoMs only for their own buyers, and only their own BoMs. People who sign up but are not listed here get no access.</div></div></div>' +
+      '<div class="top"><div><h1>Users</h1><div class="sub">Give each merchant their buyers and tabs. They see and create BoMs only for their own buyers, and only their own BoMs. Set a password here and give it to the person. No sign-up needed.</div></div></div>' +
       '<div class="panel"><div class="fields">' +
       '<label class="f">Email<input id="u-email" type="email" placeholder="name@gudi.net" autocomplete="off"></label>' +
       '<label class="f">Name<input id="u-name" type="text" autocomplete="off"></label>' +
-      '<label class="f">Buyers (comma separated)<input id="u-buyers" type="text" placeholder="OUI, LCW" autocomplete="off"></label></div>' +
+      '<label class="f">Buyers (comma separated)<input id="u-buyers" type="text" placeholder="OUI, LCW" autocomplete="off"></label>' +
+      '<label class="f">Password (8+ characters, leave empty to keep as is)<span style="display:flex;gap:6px"><input id="u-pass" type="text" autocomplete="off" style="flex:1"><button id="u-gen" type="button">Generate</button></span></label></div>' +
       '<div class="row" style="gap:16px;flex-wrap:wrap;margin-top:8px">' +
       '<label style="display:flex;gap:6px;align-items:center"><input id="u-bom" type="checkbox" checked> Build BoM tab</label>' +
       '<label style="display:flex;gap:6px;align-items:center"><input id="u-label" type="checkbox" checked> Label Checker tab</label>' +
@@ -1798,7 +1786,7 @@ function lcOpen(id){
     var users = [], armed = "";
     function msg(t, bad){ var m = pane.querySelector("#u-msg"); m.className = bad ? "msg err" : "msg"; m.textContent = t; }
     function $u(i){ return pane.querySelector("#" + i); }
-    function clear(){ ["u-email","u-name","u-buyers"].forEach(function(i){ $u(i).value = ""; }); $u("u-email").readOnly = false; $u("u-bom").checked = $u("u-label").checked = $u("u-active").checked = true; $u("u-admin").checked = false; }
+    function clear(){ ["u-email","u-name","u-buyers","u-pass"].forEach(function(i){ $u(i).value = ""; }); $u("u-email").readOnly = false; $u("u-bom").checked = $u("u-label").checked = $u("u-active").checked = true; $u("u-admin").checked = false; }
     function draw(){
       $u("u-list").innerHTML = '<table><thead><tr><th>Person</th><th>Buyers</th><th>Tabs</th><th class="n">BoMs</th><th>Status</th><th></th></tr></thead><tbody>' +
         users.map(function(u){
@@ -1821,6 +1809,7 @@ function lcOpen(id){
         $u("u-bom").checked = (u.tabs || []).indexOf("bom") >= 0; $u("u-label").checked = (u.tabs || []).indexOf("label") >= 0; $u("u-admin").checked = !!u.isAdmin; $u("u-active").checked = !!u.active;
         msg("Editing " + u.email + ". Change what you need and press Save user."); window.scrollTo(0, 0); }
     });
+    $u("u-gen").onclick = function(){ var c = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789", a = new Uint32Array(10), p = ""; crypto.getRandomValues(a); for (var i = 0; i < a.length; i++) p += c[a[i] % c.length]; $u("u-pass").value = p; };
     $u("u-clear").onclick = function(){ clear(); msg(""); };
     $u("u-save").onclick = function(){
       var em = $u("u-email").value.trim().toLowerCase();
@@ -1831,7 +1820,16 @@ function lcOpen(id){
       if (!admin && !b.length && t.indexOf("bom") >= 0 && !confirm("No buyers entered. This person will not be able to enter a buyer on any BoM. Save anyway?")){ return; }
       msg("Saving...");
       M.rpc("admin_save_user", {p: {email: em, name: $u("u-name").value.trim(), buyers: b, tabs: t, isAdmin: admin, active: $u("u-active").checked}})
-        .then(function(){ msg("Saved " + em + ". They can sign in now (new people use Create account first)."); clear(); return load(); }, function(e){ msg(e.message, true); });
+        .then(function(){
+          var pw = $u("u-pass").value;
+          if (!pw) return null;
+          if (pw.length < 8) throw new Error("Password needs 8 or more characters.");
+          return M.token().then(function(t){ return fetch("/api/admin-user", {method: "POST", headers: {"content-type": "application/json", authorization: "Bearer " + t}, body: JSON.stringify({email: em, password: pw})}); })
+            .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){
+              if (!r.ok){ throw new Error(j.error === "not_configured" ? "Passwords are not set up yet. The user was saved, but add SUPABASE_SERVICE_ROLE_KEY in Vercel." : "Could not set the password (" + (j.error || r.status) + ").") ; }
+              return pw; }); });
+        })
+        .then(function(pw){ msg(pw ? "Saved " + em + ". Login: " + em + " / " + pw + "  (copy it now, it is not shown again)." : "Saved " + em + "."); if (!pw) clear(); else { $u("u-pass").value = ""; $u("u-email").readOnly = false; } return load(); }, function(e){ msg(e.message, true); });
     };
     load();
     btn.addEventListener("click", load);

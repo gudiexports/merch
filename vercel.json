@@ -1,5 +1,6 @@
 {
   "functions": {
-    "api/claude.js": { "maxDuration": 60 }
+    "api/claude.js": { "maxDuration": 60 },
+    "api/admin-user.js": { "maxDuration": 30 }
   }
 }

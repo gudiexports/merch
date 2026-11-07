@@ -6,7 +6,7 @@ const SUPABASE_KEY = "sb_publishable_WFNgGJFYy3yd3mDMpWBv1Q_kK13TtMy"; // public
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
-  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = String(process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim().replace(/^["']|["']$/g, "");
   if (!secret) return res.status(503).json({ error: "not_configured" });
 
   // caller must be a signed-in admin

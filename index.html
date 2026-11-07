@@ -293,7 +293,12 @@ table.lc tr.mis td{background:var(--warn-bg)}
         return fetch("/api/claude", {method: "POST", signal: o.signal, headers: {"content-type": "application/json", authorization: "Bearer " + a[0]}, body: JSON.stringify({prompt: prompt, images: a[1]})});
       }).then(function(r){
         return r.json().catch(function(){ return {}; }).then(function(j){
-          if (!r.ok || !j.data){ var e = new Error(j.error || "failed"); e.code = j.error === "invalid_json" ? "invalid_json" : "unavailable"; throw e; }
+          if (!r.ok || !j.data){
+            console.error("Claude call failed", r.status, j);
+            var e = new Error(j.error || "failed");
+            e.code = j.error === "invalid_json" ? "invalid_json" : r.status === 401 ? "session_expired" : r.status === 413 ? "prompt_too_large" : r.status === 429 ? "rate_limited" : j.error === "bad_key" ? "sampling_disabled" : "unavailable";
+            throw e;
+          }
           return j.data;
         });
       });
